@@ -1,0 +1,11 @@
+streamlit
+torch
+transformers
+pillow
+numpy
+requests
+soundfile
+sentencepiece
+safetensors
+accelerate
+opencv-python
