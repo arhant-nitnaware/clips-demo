@@ -121,6 +121,20 @@ if (
     st.session_state.tinyclip_pipe = None
 
 if (
+    "tinyclip_model"
+    not in st.session_state
+):
+
+    st.session_state.tinyclip_model = None
+
+if (
+    "tinyclip_processor"
+    not in st.session_state
+):
+
+    st.session_state.tinyclip_processor = None
+
+if (
     "tinyclip_result"
     not in st.session_state
 ):
@@ -128,11 +142,22 @@ if (
     st.session_state.tinyclip_result = None
 
 if (
-    "tinyclip_image"
+    "tinyclip_retrieval_result"
     not in st.session_state
 ):
 
-    st.session_state.tinyclip_image = None
+    st.session_state[
+        "tinyclip_retrieval_result"
+    ] = None
+
+if (
+    "tinyclip_top_k"
+    not in st.session_state
+):
+
+    st.session_state[
+        "tinyclip_top_k"
+    ] = 4
 
 # ---------- Original CLIP ----------
 
@@ -265,13 +290,25 @@ with st.sidebar:
             "Loading TinyCLIP..."
         ):
 
-            pipe = load_tinyclip(
+            (
+                pipe,
+                model,
+                processor
+            ) = load_tinyclip(
                 HF_TOKEN
             )
 
             st.session_state[
                 "tinyclip_pipe"
             ] = pipe
+
+            st.session_state[
+                "tinyclip_model"
+            ] = model
+
+            st.session_state[
+                "tinyclip_processor"
+            ] = processor
 
         st.success(
             "TinyCLIP Loaded"

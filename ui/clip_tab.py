@@ -241,7 +241,7 @@ def render_clip_tab():
                             f"{image_name}\n"
                             f"{score:.4f}"
                         ),
-                        use_container_width=True
+                        width=350
                     )
 
             # ==============================
