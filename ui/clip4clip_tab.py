@@ -20,52 +20,15 @@ from utils.video_utils import (
     get_video_frame_count
 )
 
+from inference.clip4clip_similarity import (
+    compute_video_similarity
+)
+
 import torch
 import torch.nn.functional as F
 
 
-def compute_video_similarity(
-    processor,
-    model,
-    frames,
-    prompts
-):
 
-    frame_features = encode_frames(
-        processor,
-        model,
-        frames
-    )
-
-    video_embedding = (
-        frame_features.mean(
-            dim=0,
-            keepdim=True
-        )
-    )
-
-    video_embedding = F.normalize(
-        video_embedding,
-        dim=-1
-    )
-
-    text_features = encode_text(
-        processor,
-        model,
-        prompts
-    )
-
-    similarities = torch.matmul(
-        text_features,
-        video_embedding.T
-    ).squeeze()
-
-    scores = similarities.cpu().tolist()
-
-    return sorted(
-        zip(prompts, scores),
-        key=lambda x: -x[1]
-    )
 
 
 def render_clip4clip_tab():

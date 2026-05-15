@@ -93,9 +93,27 @@ def classify_video(
             frames
         )
 
-        # aggregate temporal embedding
+        # =====================================
+        # TEMPORAL POSITIONAL WEIGHTING
+        # =====================================
+
+        num_frames = (
+            frame_features.shape[0]
+        )
+
+        temporal_weights = torch.linspace(
+            0.5,
+            1.5,
+            num_frames
+        ).unsqueeze(-1)
+
+        weighted_features = (
+            frame_features
+            * temporal_weights
+        )
+
         video_embedding = (
-            frame_features.mean(
+            weighted_features.sum(
                 dim=0,
                 keepdim=True
             )

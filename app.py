@@ -34,6 +34,10 @@ from ui.clip_tab import (
     render_clip_tab
 )
 
+from ui.av_tab import (
+    render_av_tab
+)
+
 # ==========================================
 # PAGE CONFIG
 # ==========================================
@@ -155,9 +159,14 @@ if (
     not in st.session_state
 ):
 
+
     st.session_state[
         "tinyclip_top_k"
     ] = 4
+
+if "av_result" not in st.session_state:
+
+    st.session_state.av_result = None
 
 # ---------- Original CLIP ----------
 
@@ -349,12 +358,13 @@ with st.sidebar:
 # TABS
 # ==========================================
 
-tab1, tab2, tab3, tab4 = st.tabs(
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [
         "CLIP4Clip",
         "CLAP",
         "TinyCLIP",
-        "Original CLIP"
+        "Original CLIP",
+        "Audio+Video"
     ]
 )
 
@@ -432,4 +442,23 @@ with tab4:
 
         st.warning(
             "Load Original CLIP first"
+        )
+
+# ==========================================
+# AV CLIP TAB
+# ==========================================
+with tab5:
+
+    if (
+        st.session_state.clip4clip_model
+        and
+        st.session_state.clap_model
+    ):
+
+        render_av_tab()
+
+    else:
+
+        st.warning(
+            "Load CLIP4Clip and CLAP first"
         )
