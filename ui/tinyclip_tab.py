@@ -323,3 +323,26 @@ def render_tinyclip_tab():
                     fig,
                     use_container_width=True
                 )
+            
+            # ==============================
+            # INFERENCE DETAILS
+            # ==============================
+
+            st.markdown(
+                "### Inference Details"
+            )
+
+            st.write(
+                f"Time Taken: "
+                f"{result['time_taken']:.4f}s"
+            )
+
+            st.write(
+                f"Images Processed: "
+                f"{len(ranked_results)}"
+            )
+
+            st.write(
+                f"Query: "
+                f"`{result['query']}`"
+            )

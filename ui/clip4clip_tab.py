@@ -1,11 +1,14 @@
 import os
 import tempfile
+
 import matplotlib.pyplot as plt
 import streamlit as st
 
 from inference.clip4clip_infer import (
     classify_video,
-    query_video
+    query_video,
+    encode_frames,
+    encode_text
 )
 
 from utils.report import (
@@ -17,6 +20,53 @@ from utils.video_utils import (
     get_video_frame_count
 )
 
+import torch
+import torch.nn.functional as F
+
+
+def compute_video_similarity(
+    processor,
+    model,
+    frames,
+    prompts
+):
+
+    frame_features = encode_frames(
+        processor,
+        model,
+        frames
+    )
+
+    video_embedding = (
+        frame_features.mean(
+            dim=0,
+            keepdim=True
+        )
+    )
+
+    video_embedding = F.normalize(
+        video_embedding,
+        dim=-1
+    )
+
+    text_features = encode_text(
+        processor,
+        model,
+        prompts
+    )
+
+    similarities = torch.matmul(
+        text_features,
+        video_embedding.T
+    ).squeeze()
+
+    scores = similarities.cpu().tolist()
+
+    return sorted(
+        zip(prompts, scores),
+        key=lambda x: -x[1]
+    )
+
 
 def render_clip4clip_tab():
 
@@ -26,21 +76,25 @@ def render_clip4clip_tab():
         "Upload Video",
         type=["mp4", "avi", "mov"]
     )
-    
+
     if uploaded is None:
         return
 
-    video_col1, video_col2, video_col3 = st.columns(
-    [1, 3, 1]
-)
+    # ======================================
+    # VIDEO DISPLAY
+    # ======================================
+
+    video_col1, video_col2, video_col3 = (
+        st.columns([1, 3, 1])
+    )
 
     with video_col2:
 
         st.video(uploaded)
 
-    st.markdown(
-        "### Frame Extraction Settings"
-    )
+    # ======================================
+    # TEMP VIDEO
+    # ======================================
 
     with tempfile.NamedTemporaryFile(
         suffix=".mp4",
@@ -51,13 +105,20 @@ def render_clip4clip_tab():
 
         video_path = tmp.name
 
-    total_video_frames = (
-    get_video_frame_count(
-        video_path
-    )
-)
+    # ======================================
+    # FRAME SETTINGS
+    # ======================================
 
-    # fallback safety
+    st.markdown(
+        "### Frame Extraction Settings"
+    )
+
+    total_video_frames = (
+        get_video_frame_count(
+            video_path
+        )
+    )
+
     if total_video_frames <= 0:
 
         total_video_frames = 64
@@ -80,8 +141,8 @@ def render_clip4clip_tab():
         step=1,
         help=(
             "Higher frame counts improve "
-            "retrieval precision but "
-            "increase CPU inference time."
+            "temporal representation but "
+            "increase inference time."
         )
     )
 
@@ -99,24 +160,29 @@ def render_clip4clip_tab():
         video_path,
         max_frames=max_frames
     )
-    
 
     os.unlink(video_path)
 
     st.markdown("---")
 
+    # ======================================
+    # TASK MODES
+    # ======================================
+
     mode = st.radio(
         "Task",
         [
             "Video Labeling",
-            "Frame Retrieval"
+            "Frame Retrieval",
+            "Video Similarity"
         ],
-        horizontal=True
+        horizontal=True,
+        key="clip4clip_mode"
     )
 
-    # ==========================================
+    # ======================================
     # MODE TRACKING
-    # ==========================================
+    # ======================================
 
     if (
         "clip4clip_current_mode"
@@ -142,12 +208,16 @@ def render_clip4clip_tab():
         ] = None
 
         st.session_state[
+            "clip4clip_similarity_result"
+        ] = None
+
+        st.session_state[
             "clip4clip_current_mode"
         ] = mode
 
-    # ==========================================
+    # ======================================
     # VIDEO LABELING
-    # ==========================================
+    # ======================================
 
     if mode == "Video Labeling":
 
@@ -195,10 +265,6 @@ def render_clip4clip_tab():
                 "clip4clip_label_result"
             ] = result
 
-        # ======================================
-        # RESULT DISPLAY
-        # ======================================
-
         result = st.session_state.get(
             "clip4clip_label_result"
         )
@@ -214,11 +280,11 @@ def render_clip4clip_tab():
                 result["results"]
             )
 
-    # ==========================================
+    # ======================================
     # FRAME RETRIEVAL
-    # ==========================================
+    # ======================================
 
-    else:
+    elif mode == "Frame Retrieval":
 
         st.subheader(
             "Text-based Frame Retrieval"
@@ -260,10 +326,6 @@ def render_clip4clip_tab():
                 "clip4clip_top_k"
             ] = top_k
 
-        # ======================================
-        # RESULT DISPLAY
-        # ======================================
-
         result = st.session_state.get(
             "clip4clip_query_result"
         )
@@ -287,7 +349,7 @@ def render_clip4clip_tab():
                 )
             ]
 
-            num_columns = 4
+            num_columns = 2
 
             for start_idx in range(
                 0,
@@ -301,11 +363,10 @@ def render_clip4clip_tab():
                 ]
 
                 columns = st.columns(
-                    len(current_row)
+                    num_columns
                 )
 
-                for column, frame_data in zip(
-                    columns,
+                for idx, frame_data in enumerate(
                     current_row
                 ):
 
@@ -313,7 +374,7 @@ def render_clip4clip_tab():
                         frame_data
                     )
 
-                    column.image(
+                    columns[idx].image(
                         frames[frame_idx],
                         caption=(
                             f"Frame {frame_idx}\n"
@@ -322,20 +383,20 @@ def render_clip4clip_tab():
                         use_container_width=True
                     )
 
-        
-
             st.markdown(
                 "### Frame Retrieval Scores"
             )
 
             frame_indices = [
                 frame_idx
-                for frame_idx, _ in ranked_frames
+                for frame_idx, _
+                in ranked_frames
             ]
 
             scores = [
                 score
-                for _, score in ranked_frames
+                for _, score
+                in ranked_frames
             ]
 
             fig, ax = plt.subplots(
@@ -363,12 +424,13 @@ def render_clip4clip_tab():
                 frame_indices
             )
 
-            # dynamic y-axis
             min_score = min(scores)
             max_score = max(scores)
 
             margin = max(
-                (max_score - min_score) * 0.15,
+                (
+                    max_score - min_score
+                ) * 0.15,
                 0.01
             )
 
@@ -377,7 +439,6 @@ def render_clip4clip_tab():
                 max_score + margin
             )
 
-            # value labels
             for bar, score in zip(
                 bars,
                 scores
@@ -396,8 +457,8 @@ def render_clip4clip_tab():
                     fontsize=8
                 )
 
-            graph_col1, graph_col2, graph_col3 = st.columns(
-                [1, 2, 1]
+            graph_col1, graph_col2, graph_col3 = (
+                st.columns([1, 2, 1])
             )
 
             with graph_col2:
@@ -416,47 +477,201 @@ def render_clip4clip_tab():
                 f"{result['time_taken']:.4f}s"
             )
 
+    # ======================================
+    # VIDEO SIMILARITY
+    # ======================================
+
+    else:
+
+        st.subheader(
+            "Temporal Video Similarity"
+        )
+
+        prompts_raw = st.text_area(
+            "Prompts",
+            value=(
+                "a car driving left to right\n"
+                "a car driving right to left\n"
+                "a parked car\n"
+                "a racing vehicle"
+            ),
+            height=180
+        )
+
+        if st.button(
+            "Compute Video Similarity"
+        ):
+
+            prompts = [
+                prompt.strip()
+                for prompt in (
+                    prompts_raw.splitlines()
+                )
+                if prompt.strip()
+            ]
+
+            results = compute_video_similarity(
+                st.session_state
+                .clip4clip_processor,
+
+                st.session_state
+                .clip4clip_model,
+
+                frames,
+
+                prompts
+            )
+
+            st.session_state[
+                "clip4clip_similarity_result"
+            ] = results
+
+        results = st.session_state.get(
+            "clip4clip_similarity_result"
+        )
+
+        if results is not None:
+
+            st.markdown("---")
+
             st.markdown(
-    """
-    ### CLIP4Clip
+                "### Video Similarity Scores"
+            )
 
-    **Domain:** Video-Text Retrieval
+            labels = [
+                item[0]
+                for item in results
+            ]
 
-    **Paper:**  
-    https://arxiv.org/abs/2104.08860
+            scores = [
+                item[1]
+                for item in results
+            ]
 
-    **Repository:**  
-    https://github.com/ArrowLuo/CLIP4Clip
+            fig, ax = plt.subplots(
+                figsize=(10, 4)
+            )
 
-    **Organization:** Microsoft Research Asia
+            bars = ax.bar(
+                labels,
+                scores
+            )
 
-    **Overview:**  
-    CLIP4Clip extends OpenAI CLIP for video understanding.
-    Instead of processing a single image, it extracts frame-level
-    visual embeddings from videos and aligns them with text
-    embeddings inside a shared semantic space.
+            ax.set_ylabel(
+                "Similarity Score"
+            )
 
-    **Training Strategy:**  
-    The model is trained using contrastive learning on
-    video-caption pairs. Video embeddings are constructed
-    using sampled frame embeddings aggregated temporally.
+            ax.set_title(
+                "Video-Text Similarity"
+            )
 
-    **Datasets Used:**  
-    - MSR-VTT  
-    - ActivityNet  
-    - DiDeMo
+            ax.tick_params(
+                axis="x",
+                rotation=15
+            )
 
-    **Inference Pipeline:**  
-    1. Sample frames from video  
-    2. Encode frames using CLIP vision encoder  
-    3. Aggregate temporal embeddings  
-    4. Encode text query  
-    5. Compute cosine similarity
+            min_score = min(scores)
+            max_score = max(scores)
 
-    **Applications:**  
-    - Video retrieval  
-    - Video caption matching  
-    - Semantic frame localization  
-    - Video search
-    """
-)
+            margin = max(
+                (
+                    max_score - min_score
+                ) * 0.15,
+                0.01
+            )
+
+            ax.set_ylim(
+                min_score - margin,
+                max_score + margin
+            )
+
+            for bar, score in zip(
+                bars,
+                scores
+            ):
+
+                ax.text(
+                    bar.get_x() +
+                    bar.get_width() / 2,
+
+                    score,
+
+                    f"{score:.4f}",
+
+                    ha="center",
+                    va="bottom",
+                    fontsize=8
+                )
+
+            graph_col1, graph_col2, graph_col3 = (
+                st.columns([1, 2, 1])
+            )
+
+            with graph_col2:
+
+                st.pyplot(
+                    fig,
+                    use_container_width=True
+                )
+
+            st.markdown(
+                "### Similarity Ranking"
+            )
+
+            for prompt, score in results:
+
+                st.write(
+                    f"- `{prompt}` → "
+                    f"{score:.4f}"
+                )
+
+    # ======================================
+    # MODEL INFO
+    # ======================================
+
+    st.markdown("---")
+
+    st.markdown(
+        """
+        ### CLIP4Clip
+
+        **Domain:** Video-Text Retrieval
+
+        **Paper:**  
+        https://arxiv.org/abs/2104.08860
+
+        **Repository:**  
+        https://github.com/ArrowLuo/CLIP4Clip
+
+        **Organization:** Microsoft Research Asia
+
+        **Overview:**  
+        CLIP4Clip extends OpenAI CLIP for video understanding.
+        Instead of processing a single image, it extracts frame-level
+        visual embeddings from videos and aligns them with text
+        embeddings inside a shared semantic space.
+
+        **Training Strategy:**  
+        The model is trained using contrastive learning on
+        video-caption pairs. Video embeddings are constructed
+        using sampled frame embeddings aggregated temporally.
+
+        **Datasets Used:**  
+        - MSR-VTT  
+        - ActivityNet  
+        - DiDeMo
+
+        **Inference Pipeline:**  
+        1. Sample frames from video  
+        2. Encode frames using CLIP vision encoder  
+        3. Aggregate temporal embeddings  
+        4. Encode text query  
+        5. Compute cosine similarity
+
+        **Applications:**  
+        - Video retrieval  
+        - Video caption matching  
+        - Semantic frame localization  
+        - Video search
+        """
+    )
