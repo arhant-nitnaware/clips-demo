@@ -438,7 +438,7 @@ def render_av_tab():
 
             preview_frames = segment[
                 "frames"
-            ][:2]
+            ][:1]
 
             cols = st.columns(
                 len(preview_frames)
@@ -451,7 +451,7 @@ def render_av_tab():
 
                 col.image(
                     frame,
-                    use_container_width=True
+                    width=500
                 )
 
             timeline_x.append(
