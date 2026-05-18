@@ -1,6 +1,6 @@
 import streamlit as st
 
-from config import HF_TOKEN
+HF_KEY = st.secrets["HUGGINGFACE_API_KEY"]
 
 from models.clip4clip_model import (
     load_clip4clip
