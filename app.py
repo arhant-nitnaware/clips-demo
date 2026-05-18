@@ -1,6 +1,6 @@
 import streamlit as st
 
-HF_KEY = st.secrets["HUGGINGFACE_API_KEY"]
+HF_KEY = st.secrets["HF_KEY"]
 
 from models.clip4clip_model import (
     load_clip4clip
@@ -304,7 +304,7 @@ with st.sidebar:
                 model,
                 processor
             ) = load_tinyclip(
-                HF_TOKEN
+                HF_KEY
             )
 
             st.session_state[
