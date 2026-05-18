@@ -235,7 +235,7 @@ with st.sidebar:
 
             processor, model = (
                 load_clip4clip(
-                    HF_TOKEN
+                    HF_KEY
                 )
             )
 
@@ -268,7 +268,7 @@ with st.sidebar:
                 model,
                 tokenizer,
                 extractor
-            ) = load_clap(HF_TOKEN)
+            ) = load_clap(HF_KEY)
 
             st.session_state[
                 "clap_model"
@@ -338,7 +338,7 @@ with st.sidebar:
 
             model, processor = (
                 load_clip(
-                    HF_TOKEN
+                    HF_KEY
                 )
             )
 
