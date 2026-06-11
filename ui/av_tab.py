@@ -478,7 +478,7 @@ def render_av_tab():
         # =================================
 
         fig, ax = plt.subplots(
-            figsize=(10, 4)
+            figsize=(16, 6)
         )
 
         bars = ax.bar(
@@ -497,6 +497,42 @@ def render_av_tab():
         ax.set_title(
             "Temporal Retrieval Scores"
         )
+
+        # ======================================
+        # SHOW ONLY MAJOR TICKS
+        # ======================================
+
+        step = max(
+            1,
+            len(timeline_x) // 10
+        )
+
+        tick_positions = list(
+            range(
+                0,
+                len(timeline_x),
+                step
+            )
+        )
+
+        ax.set_xticks(
+            tick_positions
+        )
+
+        ax.set_xticklabels(
+            [
+                timeline_x[i]
+                for i in tick_positions
+            ],
+            rotation=45,
+            ha="right"
+        )
+
+        ax.minorticks_off()
+
+        # ======================================
+        # Y LIMITS
+        # ======================================
 
         min_score = min(
             timeline_y
@@ -519,33 +555,22 @@ def render_av_tab():
             max_score + margin
         )
 
-        for bar, score in zip(
-            bars,
-            timeline_y
-        ):
+        # ======================================
+        # CLEANUP
+        # ======================================
 
-            ax.text(
-                bar.get_x()
-                + bar.get_width() / 2,
-
-                score,
-
-                f"{score:.3f}",
-
-                ha="center",
-                va="bottom"
-            )
-
-        graph_col1, graph_col2, graph_col3 = (
-            st.columns([1, 2, 1])
+        ax.grid(
+            axis="y",
+            linestyle="--",
+            alpha=0.3
         )
 
-        with graph_col2:
+        fig.tight_layout()
 
-            st.pyplot(
-                fig,
-                use_container_width=True
-            )
+        st.pyplot(
+            fig,
+            use_container_width=True
+        )
 
         st.markdown("---")
 
