@@ -106,3 +106,9 @@ The application automatically uses CUDA when a compatible GPU is available.
 If CUDA is unavailable, execution automatically falls back to CPU.
 
 Current device information and GPU memory usage are displayed in the application sidebar.
+
+## Take a look at demo videos at: 
+
+Audio Search : https://youtu.be/D4UeC6aDbd0
+Video Search : https://youtu.be/6ssBksFQoHo
+AV Search : https://youtu.be/lBf_itk5blk
