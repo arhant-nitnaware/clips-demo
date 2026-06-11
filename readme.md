@@ -81,8 +81,6 @@ Each directory should contain:
 model.safetensors
 ```
 
----
-
 ## Running the Application
 
 Start the Streamlit application:
