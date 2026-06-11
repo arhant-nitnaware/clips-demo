@@ -376,8 +376,23 @@ def render_av_tab():
             "results"
         ][:10]
 
-        timeline_x = []
-        timeline_y = []
+        timeline_results = sorted(
+            result["results"],
+            key=lambda x: x["start_time"]
+        )
+
+        timeline_x = [
+            (
+                f"{segment['start_time']:.0f}-"
+                f"{segment['end_time']:.0f}s"
+            )
+            for segment in timeline_results
+        ]
+
+        timeline_y = [
+            segment["fused_score"]
+            for segment in timeline_results
+        ]
 
         for idx, segment in enumerate(
             top_results
@@ -453,15 +468,6 @@ def render_av_tab():
                     frame,
                     width=500
                 )
-
-            timeline_x.append(
-                f"{start_t:.0f}-"
-                f"{end_t:.0f}s"
-            )
-
-            timeline_y.append(
-                fused_score
-            )
 
             st.markdown("---")
 
