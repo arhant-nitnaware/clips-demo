@@ -6,6 +6,8 @@ from transformers import (
     pipeline
 )
 
+from utils.device import DEVICE
+
 MODEL_ID = (
     "wkcn/TinyCLIP-ViT-61M-32-Text-29M-LAION400M"
 )
@@ -43,6 +45,8 @@ def load_tinyclip(token):
                 LOCAL_DIR
             )
         )
+
+        model = model.to(DEVICE)
 
         pipe = pipeline(
             task="zero-shot-image-classification",
@@ -88,6 +92,8 @@ def load_tinyclip(token):
                 local_files_only=True
             )
         )
+
+        model = model.to(DEVICE)
 
         pipe = pipeline(
             task="zero-shot-image-classification",
@@ -139,6 +145,8 @@ def load_tinyclip(token):
                 token=token
             )
         )
+
+        model = model.to(DEVICE)
 
         os.makedirs(
             LOCAL_DIR,

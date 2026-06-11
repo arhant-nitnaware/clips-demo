@@ -4,6 +4,7 @@ from transformers import (
     CLIPModel,
     CLIPProcessor
 )
+from utils.device import DEVICE
 
 MODEL_ID = (
     "openai/clip-vit-base-patch32"
@@ -41,6 +42,8 @@ def load_clip(token):
             )
         )
 
+        model = model.to(DEVICE)
+
         model.eval()
 
         print(
@@ -72,6 +75,8 @@ def load_clip(token):
                 local_files_only=True
             )
         )
+
+        model = model.to(DEVICE)
 
         print(
             "[INFO] CLIP loaded from cache"
@@ -110,6 +115,8 @@ def load_clip(token):
                 token=token
             )
         )
+
+        model = model.to(DEVICE)
 
         os.makedirs(
             LOCAL_DIR,

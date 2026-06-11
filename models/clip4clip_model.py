@@ -5,6 +5,8 @@ from transformers import (
     AutoModel
 )
 
+from utils.device import DEVICE
+
 MODEL_ID = (
     "Searchium-ai/clip4clip-webvid150k"
 )
@@ -43,6 +45,8 @@ def load_clip4clip(token):
             )
         )
 
+        model = model.to(DEVICE)
+
         model.eval()
 
         print(
@@ -76,6 +80,8 @@ def load_clip4clip(token):
                 local_files_only=True
             )
         )
+
+        model = model.to(DEVICE)
 
         print(
             "[INFO] Clip4Clip loaded from cache"
@@ -116,6 +122,8 @@ def load_clip4clip(token):
                 token=token
             )
         )
+
+        model = model.to(DEVICE)
 
         os.makedirs(
             LOCAL_DIR,

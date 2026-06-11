@@ -1,5 +1,7 @@
 import streamlit as st
 import torch
+from utils.device import DEVICE
+
 try:
     HF_KEY = st.secrets["HF_KEY"]
 except Exception:
@@ -571,7 +573,7 @@ with st.sidebar:
     else:
 
         st.write(
-            "Running on CPU"
+            f"Running on {DEVICE}"
         )
 
 if st.session_state[

@@ -5,6 +5,7 @@ from transformers import (
     AutoTokenizer,
     AutoFeatureExtractor
 )
+from utils.device import DEVICE
 
 MODEL_ID = "laion/clap-htsat-unfused"
 
@@ -32,6 +33,8 @@ def load_clap(token):
             LOCAL_DIR
         )
 
+        model = model.to(DEVICE)
+        
         tokenizer = (
             AutoTokenizer.from_pretrained(
                 LOCAL_DIR
@@ -71,6 +74,8 @@ def load_clap(token):
             MODEL_ID,
             local_files_only=True
         )
+
+        model = model.to(DEVICE)
 
         tokenizer = (
             AutoTokenizer.from_pretrained(
@@ -119,6 +124,8 @@ def load_clap(token):
             MODEL_ID,
             token=token
         )
+
+        model = model.to(DEVICE)
 
         tokenizer = (
             AutoTokenizer.from_pretrained(
