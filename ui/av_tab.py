@@ -364,6 +364,8 @@ def render_av_tab():
     # SHOW RESULTS
     # =====================================
 
+    TOP_K = 3
+
     if result is not None:
 
         st.markdown("---")
@@ -374,7 +376,7 @@ def render_av_tab():
 
         top_results = result[
             "results"
-        ][:10]
+        ][:TOP_K]
 
         timeline_results = sorted(
             result["results"],
