@@ -10,8 +10,9 @@ MODEL_ID = (
     "wkcn/TinyCLIP-ViT-61M-32-Text-29M-LAION400M"
 )
 
-LOCAL_DIR = (
-    "models_local/tinyclip"
+LOCAL_DIR = os.path.join(
+    "models_local",
+    "tinyclip"
 )
 
 

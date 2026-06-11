@@ -9,8 +9,9 @@ MODEL_ID = (
     "Searchium-ai/clip4clip-webvid150k"
 )
 
-LOCAL_DIR = (
-    "models_local/clip4clip"
+LOCAL_DIR = os.path.join(
+    "models_local",
+    "clip4clip"
 )
 
 

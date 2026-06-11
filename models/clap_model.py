@@ -8,8 +8,9 @@ from transformers import (
 
 MODEL_ID = "laion/clap-htsat-unfused"
 
-LOCAL_DIR = (
-    "models_local/clap"
+LOCAL_DIR = os.path.join(
+    "models_local",
+    "clap"
 )
 
 

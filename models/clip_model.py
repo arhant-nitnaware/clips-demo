@@ -9,8 +9,9 @@ MODEL_ID = (
     "openai/clip-vit-base-patch32"
 )
 
-LOCAL_DIR = (
-    "models_local/clip"
+LOCAL_DIR = os.path.join(
+    "models_local",
+    "clip"
 )
 
 
