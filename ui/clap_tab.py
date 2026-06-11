@@ -351,113 +351,144 @@ def render_clap_tab():
                     sample_rate=sample_rate
                 )
 
-            # ==================================
-            # BAR GRAPH
-            # ==================================
+        # ==================================
+        # BAR GRAPH
+        # ==================================
 
-            st.markdown(
-                "### Segment Similarity Graph"
+        st.markdown(
+            "### Segment Similarity Graph"
+        )
+
+        timeline_segments = sorted(
+            ranked_segments,
+            key=lambda x: x[0]
+        )
+
+        segment_labels = [
+            (
+                f"{start:.0f}-"
+                f"{end:.0f}s"
+            )
+            for start, end, _
+            in timeline_segments
+        ]
+
+        scores = [
+            score
+            for _, _, score
+            in timeline_segments
+        ]
+
+        x = list(
+            range(
+                len(scores)
+            )
+        )
+
+        fig, ax = plt.subplots(
+            figsize=(10, 4)
+        )
+
+        bars = ax.bar(
+            x,
+            scores
+        )
+
+        ax.set_xlabel(
+            "Audio Segments"
+        )
+
+        ax.set_ylabel(
+            "Similarity Score"
+        )
+
+        ax.set_title(
+            "Semantic Retrieval Scores"
+        )
+
+        # ======================================
+        # SHOW ONLY MAJOR TICKS
+        # ======================================
+
+        step = max(
+            1,
+            len(segment_labels) // 10
+        )
+
+        tick_positions = list(
+            range(
+                0,
+                len(segment_labels),
+                step
+            )
+        )
+
+        ax.set_xticks(
+            tick_positions
+        )
+
+        ax.set_xticklabels(
+            [
+                segment_labels[i]
+                for i in tick_positions
+            ],
+            rotation=45,
+            ha="right"
+        )
+
+        ax.minorticks_off()
+
+        # ======================================
+        # Y AXIS LIMITS
+        # ======================================
+
+        min_score = min(scores)
+        max_score = max(scores)
+
+        margin = max(
+            (
+                max_score - min_score
+            ) * 0.15,
+            0.01
+        )
+
+        ax.set_ylim(
+            min_score - margin,
+            max_score + margin
+        )
+
+        # ======================================
+        # CLEANUP
+        # ======================================
+
+        ax.grid(
+            axis="y",
+            linestyle="--",
+            alpha=0.3
+        )
+
+        fig.tight_layout()
+
+        graph_col1, graph_col2, graph_col3 = (
+            st.columns([1, 4, 1])
+        )
+
+        with graph_col2:
+
+            st.pyplot(
+                fig,
+                use_container_width=True
             )
 
-            timeline_segments = sorted(
-                ranked_segments,
-                key=lambda x: x[0]
-            )
+        # ==================================
+        # INFERENCE DETAILS
+        # ==================================
 
-            segment_labels = [
-                (
-                    f"{start:.0f}-"
-                    f"{end:.0f}s"
-                )
-                for start, end, _
-                in timeline_segments
-            ]
+        st.markdown(
+            "### Inference Details"
+        )
 
-            scores = [
-                score
-                for _, _, score
-                in timeline_segments
-            ]
-
-            fig, ax = plt.subplots(
-                figsize=(10, 4)
-            )
-
-            bars = ax.bar(
-                segment_labels,
-                scores
-            )
-
-            ax.set_xlabel(
-                "Audio Segments"
-            )
-
-            ax.set_ylabel(
-                "Similarity Score"
-            )
-
-            ax.set_title(
-                "Semantic Retrieval Scores"
-            )
-
-            min_score = min(scores)
-            max_score = max(scores)
-
-            margin = max(
-                (
-                    max_score - min_score
-                ) * 0.15,
-                0.01
-            )
-
-            ax.set_ylim(
-                min_score - margin,
-                max_score + margin
-            )
-
-            ax.tick_params(
-                axis="x",
-                rotation=45
-            )
-
-            for bar, score in zip(
-                bars,
-                scores
-            ):
-
-                ax.text(
-                    bar.get_x() +
-                    bar.get_width() / 2,
-
-                    score,
-
-                    f"{score:.3f}",
-
-                    ha="center",
-                    va="bottom",
-                    fontsize=8
-                )
-
-            graph_col1, graph_col2, graph_col3 = (
-                st.columns([1, 2, 1])
-            )
-
-            with graph_col2:
-
-                st.pyplot(
-                    fig,
-                    use_container_width=True
-                )
-
-            # ==================================
-            # INFERENCE DETAILS
-            # ==================================
-
-            st.markdown(
-                "### Inference Details"
-            )
-
-            st.write(
-                f"Time Taken: "
-                f"{result['time_taken']:.4f}s"
-            )
+        st.write(
+            f"Time Taken: "
+            f"{result['time_taken']:.4f}s"
+        )
