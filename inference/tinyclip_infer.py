@@ -1,4 +1,5 @@
 from utils.timers import Timer
+from utils.device import DEVICE
 
 def run_tinyclip(
     pipe,

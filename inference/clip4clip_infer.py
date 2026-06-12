@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from utils.timers import Timer
+from utils.device import DEVICE
 
 
 def encode_frames(
@@ -16,6 +17,11 @@ def encode_frames(
         return_tensors="pt",
         padding=True
     )
+
+    inputs = {
+        k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+        for k, v in inputs.items()
+    }
 
     with torch.no_grad():
 
@@ -51,6 +57,11 @@ def encode_text(
         return_tensors="pt",
         padding=True
     )
+
+    text_inputs = {
+        k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+        for k, v in text_inputs.items()
+    }
 
     with torch.no_grad():
 
@@ -104,7 +115,8 @@ def classify_video(
         temporal_weights = torch.linspace(
             0.5,
             1.5,
-            num_frames
+            num_frames,
+            device=DEVICE
         ).unsqueeze(-1)
 
         weighted_features = (

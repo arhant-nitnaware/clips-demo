@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from utils.timers import Timer
+from utils.device import DEVICE
 
 
 def extract_embedding(output):
@@ -65,6 +66,11 @@ def run_clip(
             return_tensors="pt",
             padding=True
         )
+
+        inputs = {
+            k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+            for k, v in inputs.items()
+        }
 
         with torch.no_grad():
 

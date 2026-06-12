@@ -3,6 +3,7 @@ import torch
 import librosa
 
 from utils.timers import Timer
+from utils.device import DEVICE
 
 TARGET_SR = 48000
 
@@ -74,11 +75,21 @@ def run_clap(
             return_tensors="pt"
         )
 
+        audio_inputs = {
+            k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+            for k, v in audio_inputs.items()
+        }
+
         text_inputs = tokenizer(
             texts,
             padding=True,
             return_tensors="pt"
         )
+
+        text_inputs = {
+            k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+            for k, v in text_inputs.items()
+        }
 
         with torch.no_grad():
 

@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from utils.timers import Timer
+from utils.device import DEVICE
 
 from inference.clip4clip_infer import (
     encode_frames,
@@ -49,6 +50,11 @@ def run_av_retrieval(
             padding=True,
             return_tensors="pt"
         )
+
+        text_inputs = {
+            k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+            for k, v in text_inputs.items()
+        }
 
         with torch.no_grad():
 
@@ -138,7 +144,8 @@ def run_av_retrieval(
                 torch.linspace(
                     0.5,
                     1.5,
-                    num_frames
+                    num_frames,
+                    device=DEVICE
                 ).unsqueeze(-1)
             )
 
@@ -183,6 +190,11 @@ def run_av_retrieval(
                     return_tensors="pt"
                 )
             )
+
+            audio_inputs = {
+                k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+                for k, v in audio_inputs.items()
+            }
 
             with torch.no_grad():
 

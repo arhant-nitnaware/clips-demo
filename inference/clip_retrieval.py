@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from PIL import Image
 
 from utils.timers import Timer
+from utils.device import DEVICE
 
 
 def extract_embedding(output):
@@ -71,6 +72,11 @@ def retrieve_images(
             padding=True
         )
 
+        text_inputs = {
+            k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+            for k, v in text_inputs.items()
+        }
+
         with torch.no_grad():
 
             text_output = (
@@ -125,6 +131,11 @@ def retrieve_images(
             return_tensors="pt",
             padding=True
         )
+
+        image_inputs = {
+            k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+            for k, v in image_inputs.items()
+        }
 
         with torch.no_grad():
 

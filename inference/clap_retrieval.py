@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 
 from utils.timers import Timer
+from utils.device import DEVICE
 
 from inference.clap_infer import (
     preprocess_audio
@@ -86,6 +87,11 @@ def retrieve_audio_segments(
             return_tensors="pt"
         )
 
+        text_inputs = {
+            k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+            for k, v in text_inputs.items()
+        }
+
         with torch.no_grad():
 
             text_output = (
@@ -154,6 +160,11 @@ def retrieve_audio_segments(
 
                 max_length_s=10
             )
+
+            audio_inputs = {
+                k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v
+                for k, v in audio_inputs.items()
+            }
 
             with torch.no_grad():
 
