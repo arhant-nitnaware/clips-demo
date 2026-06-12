@@ -6,7 +6,7 @@
 
 ```bash
 git clone <repository-url>
-cd main-demo-3
+cd clips-demo
 ```
 
 ### 2. Create Virtual Environment
