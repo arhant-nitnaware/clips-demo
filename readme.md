@@ -1,12 +1,5 @@
 # Multimodal AI Demo
 
-## Requirements
-
-* Python 3.13
-* Virtual Environment
-
-
-
 ## Installation
 
 ### 1. Clone Repository
@@ -18,6 +11,8 @@ cd main-demo-3
 
 ### 2. Create Virtual Environment
 
+#### Python 3.13.5 was used while developing this codebase, therefore python 3.13.x is recommended.
+
 #### Linux
 
 ```bash
@@ -27,9 +22,16 @@ source env/bin/activate
 
 #### Windows
 
-```cmd
+```bash
 python -m venv env
 env\Scripts\activate
+```
+
+#### Conda
+
+```bash
+conda create --name <env-name>
+conda activate <env-name>
 ```
 
 ### 3. Install Dependencies
@@ -38,7 +40,21 @@ env\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### Above command will not install torch torchvision
 
+### CPU torch
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
+### GPU torch
+
+```bash
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+```
+
+Check torch website: https://pytorch.org/get-started/locally/ to check which ```cu``` version you should install based on your driver version and CUDA version, use ```nvidia-smi``` to check. cu130 was used in development.
 
 ## Model Setup
 
@@ -54,7 +70,7 @@ python3 utils/setup.py
 
 ### Windows
 
-```cmd
+```bash
 python utils/setup.py
 ```
 
@@ -65,19 +81,11 @@ This downloads the `.safetensors` weight files for:
 * TinyCLIP
 * CLIP4Clip
 
-into:
-
-```text
-models_local/
-├── clap
-├── clip
-├── clip4clip
-└── tinyclip
-```
+into respective model folder inside models_local/
 
 Each directory should contain:
 
-```text
+```bash
 model.safetensors
 ```
 
@@ -96,16 +104,6 @@ http://localhost:8501
 ```
 
 If port `8501` is unavailable, Streamlit will automatically select another port and display it in the terminal.
-
-
-
-## GPU Support
-
-The application automatically uses CUDA when a compatible GPU is available.
-
-If CUDA is unavailable, execution automatically falls back to CPU.
-
-Current device information and GPU memory usage are displayed in the application sidebar.
 
 ## Take a look at demo videos at: 
 
