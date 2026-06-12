@@ -40,8 +40,6 @@ conda activate <env-name>
 pip install -r requirements.txt
 ```
 
-### Above command will not install torch torchvision
-
 ### CPU torch
 
 ```bash
