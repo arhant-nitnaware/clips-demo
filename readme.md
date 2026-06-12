@@ -16,15 +16,15 @@ cd clips-demo
 #### Linux
 
 ```bash
-python3 -m venv env
-source env/bin/activate
+python3 -m venv <env-name>
+source <env-name>/bin/activate
 ```
 
 #### Windows
 
 ```bash
-python -m venv env
-env\Scripts\activate
+python -m venv <env-name>
+<env-name>\Scripts\activate
 ```
 
 #### Conda
