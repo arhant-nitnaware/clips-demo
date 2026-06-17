@@ -99,7 +99,7 @@ def render_clip4clip_tab():
     max_frames = st.slider(
         "Number of Frames",
         min_value=2,
-        max_value=slider_max,
+        max_value=total_video_frames,
         value=default_frames,
         step=1,
         help=(
