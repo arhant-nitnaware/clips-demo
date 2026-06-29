@@ -5,7 +5,7 @@ from inference.clap_retrieval import retrieve_audio_segments
 from inference.clap_infer import run_clap
 from utils.audio_utils import extract_audio_from_video, split_audio_segments
 
-def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 2.0) -> dict:
+def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 5.0) -> dict:
     """Run CLAP audio retrieval on video or audio file and format results to be JSON-serializable."""
     model, tokenizer, extractor = model_manager.get_clap()
     

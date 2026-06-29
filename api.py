@@ -17,10 +17,21 @@ from services.clip_service import (
 from services.clap_service import run_clap_retrieval, run_clap_labeling
 from services.av_service import run_av_retrieval_service
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(
     title="Multimodal ML Inference API",
     description="REST API backend exposing all multimodal AI model inference capabilities, supporting both file uploads and local file paths.",
     version="1.1.0"
+)
+
+# Enable CORS for cross-origin requests (e.g., from React dev servers)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ==========================================
@@ -333,7 +344,7 @@ async def clap_search(
     file: Optional[UploadFile] = File(None),
     video_path: Optional[str] = Form(None),
     query: str = Form(...),
-    segment_seconds: float = Form(2.0)
+    segment_seconds: float = Form(5.0)
 ):
     """Run text-to-audio search on segments of an audio or video file using CLAP."""
     temp_path = None
@@ -395,7 +406,7 @@ async def av_search(
     query: str = Form(...),
     visual_weight: float = Form(0.5),
     audio_weight: float = Form(0.5),
-    segment_seconds: float = Form(3.0)
+    segment_seconds: float = Form(5.0)
 ):
     """Run fused Audio+Video search on segments of a video file using CLIP4Clip and CLAP."""
     temp_path = None

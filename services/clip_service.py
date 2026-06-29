@@ -60,20 +60,36 @@ def run_clip_labeling(image_path: str, labels: list[str]) -> dict:
 # ==========================================
 
 def run_clip4clip_retrieval(query: str, video_path: str, max_frames: int = 12) -> dict:
-    """Run CLIP4Clip video frame retrieval and format the output to be JSON-serializable."""
+    """Run CLIP4Clip video frame retrieval, returning base64 images for the top 4 matching frames."""
+    import io
+    import base64
+    from PIL import Image
+
+    def frame_to_b64(frame_np) -> str:
+        pil_img = Image.fromarray(frame_np)
+        buffered = io.BytesIO()
+        pil_img.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return f"data:image/jpeg;base64,{img_str}"
+
     processor, model = model_manager.get_clip4clip()
     frames = extract_frames(video_path, max_frames=max_frames)
     if not frames:
         raise ValueError(f"Could not extract frames from video at {video_path}")
     result = query_video(processor, model, frames, query)
     
-    formatted_results = [
-        {
-            "frame_index": int(r[0]),
-            "score": float(r[1])
-        }
-        for r in result["frame_scores"]
-    ]
+    # Return top 4 results with base64 image frames
+    formatted_results = []
+    for r in result["frame_scores"][:4]:
+        frame_idx = int(r[0])
+        score = float(r[1])
+        b64_image = frame_to_b64(frames[frame_idx])
+        formatted_results.append({
+            "frame_index": frame_idx,
+            "score": score,
+            "image": b64_image
+        })
+        
     return {
         "query": result["query"],
         "time_taken": float(result["time_taken"]),

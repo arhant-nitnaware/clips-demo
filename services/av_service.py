@@ -9,7 +9,7 @@ def run_av_retrieval_service(
     video_path: str,
     visual_weight: float = 0.5,
     audio_weight: float = 0.5,
-    segment_seconds: float = 3.0,
+    segment_seconds: float = 5.0,
     max_frames: int = 8
 ) -> dict:
     """Run fused Audio+Video retrieval on a video file and return JSON-serializable results."""
@@ -64,17 +64,32 @@ def run_av_retrieval_service(
         audio_weight
     )
     
-    # Format results to be JSON-serializable (strip the frame images)
-    formatted_results = [
-        {
+    # Format results to be JSON-serializable (strip frame arrays, encode representative frame to base64, keep top 4)
+    import io
+    import base64
+    from PIL import Image
+
+    def frame_to_b64(frame_np) -> str:
+        pil_img = Image.fromarray(frame_np)
+        buffered = io.BytesIO()
+        pil_img.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return f"data:image/jpeg;base64,{img_str}"
+
+    formatted_results = []
+    for r in result["results"][:4]:
+        b64_image = ""
+        if r.get("frames") and len(r["frames"]) > 0:
+            b64_image = frame_to_b64(r["frames"][0])
+            
+        formatted_results.append({
             "start_time": float(r["start_time"]),
             "end_time": float(r["end_time"]),
             "visual_score": float(r["visual_score"]),
             "audio_score": float(r["audio_score"]),
-            "fused_score": float(r["fused_score"])
-        }
-        for r in result["results"]
-    ]
+            "fused_score": float(r["fused_score"]),
+            "image": b64_image
+        })
     
     return {
         "query": result["query"],

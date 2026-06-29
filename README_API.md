@@ -305,7 +305,7 @@ Split audio into segments and rank them by query similarity.
   curl -X POST http://localhost:8000/clap/search \
     -F "file=@demo_videos/audio-search.mp4" \
     -F "query=roaring engines" \
-    -F "segment_seconds=5.0"
+    -F "segment_seconds=2.0"
   ```
 * **Response Example:**
   ```json
@@ -372,7 +372,7 @@ Combines both visual (CLIP4Clip) and audio (CLAP) encoders to rank video segment
     -F "query=helicopter blades roaring" \
     -F "visual_weight=0.5" \
     -F "audio_weight=0.5" \
-    -F "segment_seconds=5.0"
+    -F "segment_seconds=3.0"
   ```
 * **Response Example:**
   ```json
