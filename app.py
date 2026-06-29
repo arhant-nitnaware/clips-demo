@@ -17,20 +17,11 @@ from utils.model_man import (
     unload_model
 )
 
-from models.clip4clip_model import (
-    load_clip4clip
-)
-
-from models.clap_model import (
-    load_clap
-)
-
-from models.tinyclip_model import (
-    load_tinyclip
-)
-
-from models.clip_model import (
-    load_clip
+from models.model_manager import (
+    get_clip,
+    get_clip4clip,
+    get_clap,
+    get_tinyclip
 )
 
 from ui.clip4clip_tab import (
@@ -585,7 +576,7 @@ if st.session_state[
     ):
 
         processor, model = (
-            load_clip4clip(HF_KEY)
+            get_clip4clip(HF_KEY)
         )
 
         st.session_state[
@@ -614,7 +605,7 @@ if st.session_state[
             model,
             tokenizer,
             extractor
-        ) = load_clap(HF_KEY)
+        ) = get_clap(HF_KEY)
 
         st.session_state[
             "clap_model"
@@ -646,7 +637,7 @@ if st.session_state[
             pipe,
             model,
             processor
-        ) = load_tinyclip(HF_KEY)
+        ) = get_tinyclip(HF_KEY)
 
         st.session_state[
             "tinyclip_pipe"
@@ -677,7 +668,7 @@ if st.session_state[
         (
             model,
             processor
-        ) = load_clip(HF_KEY)
+        ) = get_clip(HF_KEY)
 
         st.session_state[
             "clip_model"
