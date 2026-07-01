@@ -10,26 +10,28 @@ TARGET_SR = 48000
 
 
 def extract_audio_from_video(video_path):
-
     container = av.open(video_path)
-
-    audio_stream = next(
-        s for s in container.streams
-        if s.type == "audio"
-    )
+    try:
+        audio_stream = next(
+            s for s in container.streams
+            if s.type == "audio"
+        )
+    except StopIteration:
+        container.close()
+        raise ValueError("No audio stream found in the video file.")
 
     samples = []
+    try:
+        for frame in container.decode(audio_stream):
+            arr = frame.to_ndarray()
+            if arr.ndim > 1:
+                arr = arr.mean(axis=0)
+            samples.append(arr)
+    finally:
+        container.close()
 
-    for frame in container.decode(audio_stream):
-
-        arr = frame.to_ndarray()
-
-        if arr.ndim > 1:
-            arr = arr.mean(axis=0)
-
-        samples.append(arr)
-
-    container.close()
+    if not samples:
+        raise ValueError("Audio stream is present but contains no audio frames.")
 
     waveform = np.concatenate(
         samples
@@ -38,7 +40,6 @@ def extract_audio_from_video(video_path):
     original_sr = audio_stream.rate
 
     if original_sr != TARGET_SR:
-
         waveform = librosa.resample(
             waveform,
             orig_sr=original_sr,

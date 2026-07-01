@@ -91,6 +91,12 @@ def parse_labels(labels_str: Optional[str], labels_list: Optional[List[str]]) ->
         
     return []
 
+def handle_exception(e: Exception) -> HTTPException:
+    import traceback
+    traceback.print_exc()
+    error_msg = str(e) or f"Internal Server Error: {type(e).__name__}"
+    return HTTPException(status_code=500, detail=error_msg)
+
 # ==========================================
 # STARTUP EVENT
 # ==========================================
@@ -206,7 +212,7 @@ async def media_info(
             "file_size_mb": file_size_mb
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
 
@@ -261,7 +267,7 @@ async def clip_search(
                 
         return run_clip_retrieval(query, paths)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         for p in temp_paths:
             cleanup_file(p)
@@ -293,7 +299,7 @@ async def clip_label(
             
         return run_clip_labeling(path_to_use, parsed_labels)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
 
@@ -328,7 +334,7 @@ async def tinyclip_search(
                 
         return run_tinyclip_retrieval(query, paths)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         for p in temp_paths:
             cleanup_file(p)
@@ -360,7 +366,7 @@ async def tinyclip_label(
             
         return run_tinyclip_labeling(path_to_use, parsed_labels)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
 
@@ -389,7 +395,7 @@ async def clip4clip_search(
             
         return run_clip4clip_retrieval(query, path_to_use, max_frames)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
 
@@ -421,7 +427,7 @@ async def clip4clip_label(
             
         return run_clip4clip_labeling(path_to_use, parsed_labels, max_frames)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
 
@@ -453,7 +459,7 @@ async def clip4clip_similarity(
             
         return run_clip4clip_similarity(path_to_use, parsed_prompts, max_frames)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
 
@@ -482,7 +488,7 @@ async def clap_search(
             
         return run_clap_retrieval(query, path_to_use, segment_seconds)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
 
@@ -513,7 +519,7 @@ async def clap_label(
             
         return run_clap_labeling(path_to_use, parsed_labels)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
 
@@ -550,7 +556,7 @@ async def av_search(
             segment_seconds=segment_seconds
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
 
