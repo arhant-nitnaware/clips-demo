@@ -43,11 +43,19 @@ def render_clip4clip_tab():
     uploaded.seek(0)
     files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
     total_video_frames = 0
+    duration = 0.0
+    fps = 0.0
+    resolution = "N/A"
+    file_size_mb = 0.0
     try:
         response = requests.post(f"{API_URL}/media/info", files=files_payload)
         if response.status_code == 200:
             media_data = response.json()
             total_video_frames = media_data.get("frame_count", 0)
+            duration = media_data.get("duration", 0.0)
+            fps = media_data.get("fps", 0.0)
+            resolution = media_data.get("resolution", "N/A")
+            file_size_mb = media_data.get("file_size_mb", 0.0)
         else:
             st.error(f"Error getting video info: {response.text}")
     except Exception as e:
@@ -55,6 +63,53 @@ def render_clip4clip_tab():
 
     if total_video_frames <= 0:
         total_video_frames = 64
+
+    # ======================================
+    # VIDEO INFORMATION
+    # ======================================
+
+    st.markdown("---")
+
+    st.subheader(
+        "Video Information"
+    )
+
+    info_col1, info_col2, info_col3 = (
+        st.columns(3)
+    )
+
+    with info_col1:
+
+        st.metric(
+            "Duration",
+            f"{duration:.2f}s"
+        )
+
+        st.metric(
+            "FPS",
+            f"{fps:.2f}"
+        )
+
+    with info_col2:
+
+        st.metric(
+            "Total Frames",
+            total_video_frames
+        )
+
+        st.metric(
+            "Resolution",
+            resolution
+        )
+
+    with info_col3:
+
+        st.metric(
+            "File Size",
+            f"{file_size_mb:.2f} MB"
+        )
+
+    st.markdown("---")
 
     # ======================================
     # FRAME SETTINGS
@@ -254,7 +309,7 @@ def render_clip4clip_tab():
             API_URL = "http://localhost:8000"
             uploaded.seek(0)
             files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
-            data = {"query": query, "max_frames": max_frames}
+            data = {"query": query, "max_frames": max_frames, "top_k": int(top_k)}
             try:
                 response = requests.post(f"{API_URL}/clip4clip/search", files=files, data=data)
                 if response.status_code == 200:
@@ -279,7 +334,7 @@ def render_clip4clip_tab():
             )
 
             # Results returned from FastAPI contains top matches with base64 images
-            top_frames = result["results"][:st.session_state.get("clip4clip_top_k", 4)]
+            top_frames = result["results"][:int(top_k)]
 
             num_columns = 2
 
@@ -306,14 +361,34 @@ def render_clip4clip_tab():
                     score = frame_data["score"]
                     b64_image = frame_data["image"]
 
+                    import base64
+                    import io
+                    from PIL import Image
+
+                    try:
+                        image_bytes = base64.b64decode(b64_image.split(",")[1])
+                        pil_img = Image.open(io.BytesIO(image_bytes))
+                    except Exception:
+                        pil_img = b64_image
+                        image_bytes = None
+
                     columns[idx].image(
-                        b64_image,
+                        pil_img,
                         caption=(
                             f"Frame {frame_idx}\n"
                             f"Score: {score:.4f}"
                         ),
                         use_container_width=True
                     )
+
+                    if image_bytes is not None:
+                        columns[idx].download_button(
+                            label=f"📥 Download Frame {frame_idx}",
+                            data=image_bytes,
+                            file_name=f"frame_{frame_idx}.jpg",
+                            mime="image/jpeg",
+                            key=f"dl_c4c_{frame_idx}_{start_idx}_{idx}"
+                        )
 
             st.markdown(
                 "### Frame Retrieval Scores"

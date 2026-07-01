@@ -129,8 +129,8 @@ def render_av_tab():
         )
     )
 
-    settings_col1, settings_col2 = (
-        st.columns(2)
+    settings_col1, settings_col2, settings_col3 = (
+        st.columns(3)
     )
 
     with settings_col1:
@@ -149,6 +149,16 @@ def render_av_tab():
             min_value=2,
             max_value=16,
             value=8
+        )
+
+    with settings_col3:
+
+        top_k = st.number_input(
+            "Top Segments",
+            min_value=1,
+            max_value=12,
+            value=3,
+            step=1
         )
 
     st.markdown("---")
@@ -200,7 +210,8 @@ def render_av_tab():
             "query": query,
             "visual_weight": float(visual_weight),
             "audio_weight": float(audio_weight),
-            "segment_seconds": float(segment_seconds)
+            "segment_seconds": float(segment_seconds),
+            "top_k": int(top_k)
         }
         try:
             response = requests.post(f"{API_URL}/av/search", files=files, data=data)
@@ -232,12 +243,6 @@ def render_av_tab():
 
         result = None
 
-    # =====================================
-    # SHOW RESULTS
-    # =====================================
-
-    TOP_K = 3
-
     if result is not None:
 
         st.markdown("---")
@@ -248,7 +253,7 @@ def render_av_tab():
 
         top_results = result[
             "results"
-        ][:TOP_K]
+        ][:int(top_k)]
 
         timeline_results = sorted(
             result["results"],
@@ -327,7 +332,27 @@ def render_av_tab():
 
             b64_image = segment.get("image")
             if b64_image:
-                st.image(b64_image, width=500)
+                import base64
+                import io
+                from PIL import Image
+
+                try:
+                    image_bytes = base64.b64decode(b64_image.split(",")[1])
+                    pil_img = Image.open(io.BytesIO(image_bytes))
+                except Exception:
+                    pil_img = b64_image
+                    image_bytes = None
+
+                st.image(pil_img, use_container_width=True)
+
+                if image_bytes is not None:
+                    st.download_button(
+                        label=f"📥 Download Representative Frame ({start_t:.1f}s - {end_t:.1f}s)",
+                        data=image_bytes,
+                        file_name=f"segment_{start_t:.1f}_{end_t:.1f}.jpg",
+                        mime="image/jpeg",
+                        key=f"dl_av_{idx}"
+                    )
 
             st.markdown("---")
 

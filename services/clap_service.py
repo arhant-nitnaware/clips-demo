@@ -5,7 +5,7 @@ from inference.clap_retrieval import retrieve_audio_segments
 from inference.clap_infer import run_clap
 from utils.audio_utils import extract_audio_from_video, split_audio_segments
 
-def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 5.0) -> dict:
+def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 5.0, top_k: int = 4) -> dict:
     """Run CLAP audio retrieval on video or audio file and format results to be JSON-serializable."""
     model, tokenizer, extractor = model_manager.get_clap()
     
@@ -32,7 +32,7 @@ def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 5.0
     import io
     import base64
     import numpy as np
-
+ 
     def audio_to_b64(segment_waveform, sr) -> str:
         segment_audio = np.asarray(segment_waveform, dtype=np.float32)
         if segment_audio.ndim > 1:
@@ -46,7 +46,7 @@ def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 5.0
         audio_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
         return f"data:audio/wav;base64,{audio_str}"
     
-    # Format results, adding base64 audio only to the top 4
+    # Format results, adding base64 audio only to the top_k
     formatted_results = []
     for idx, r in enumerate(result["results"]):
         start_time = float(r[0])
@@ -54,7 +54,7 @@ def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 5.0
         score = float(r[2])
         
         b64_audio = ""
-        if idx < 4:
+        if idx < top_k:
             start_sample = int(start_time * sample_rate)
             end_sample = int(end_time * sample_rate)
             segment_waveform = waveform[start_sample:end_sample]

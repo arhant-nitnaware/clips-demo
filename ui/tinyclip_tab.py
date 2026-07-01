@@ -50,8 +50,26 @@ def render_tinyclip_tab():
 
             st.image(
                 image,
-                width=800
+                use_container_width=True
             )
+
+        # Extract image info
+        img_width, img_height = image.size
+        uploaded.seek(0)
+        raw_img = Image.open(uploaded)
+        img_format = raw_img.format or "Unknown"
+        file_size_mb = uploaded.size / (1024 * 1024)
+
+        st.markdown("---")
+        st.subheader("Image Information")
+        info_col1, info_col2, info_col3 = st.columns(3)
+        with info_col1:
+            st.metric("Resolution", f"{img_width}x{img_height}")
+        with info_col2:
+            st.metric("Format", img_format)
+        with info_col3:
+            st.metric("File Size", f"{file_size_mb:.2f} MB")
+        st.markdown("---")
 
         labels_raw = st.text_area(
             "Labels",
@@ -138,6 +156,31 @@ def render_tinyclip_tab():
         if not uploaded_images:
             return
 
+        total_images = len(uploaded_images)
+        total_size_mb = sum(img.size for img in uploaded_images) / (1024 * 1024)
+        
+        widths = []
+        heights = []
+        for img in uploaded_images:
+            img.seek(0)
+            with Image.open(img) as pimg:
+                w, h = pimg.size
+                widths.append(w)
+                heights.append(h)
+        avg_width = int(sum(widths) / len(widths)) if widths else 0
+        avg_height = int(sum(heights) / len(heights)) if heights else 0
+
+        st.markdown("---")
+        st.subheader("Media Batch Information")
+        info_col1, info_col2, info_col3 = st.columns(3)
+        with info_col1:
+            st.metric("Total Images", total_images)
+        with info_col2:
+            st.metric("Average Resolution", f"{avg_width}x{avg_height}")
+        with info_col3:
+            st.metric("Total File Size", f"{total_size_mb:.2f} MB")
+        st.markdown("---")
+
         query = st.text_input(
             "Query",
             value="vehicle",
@@ -201,12 +244,7 @@ def render_tinyclip_tab():
                     img = Image.open(uploaded_file).convert("RGB")
                     ranked_results.append((image_name, img, score))
 
-            top_results = ranked_results[
-                :st.session_state.get(
-                    "tinyclip_top_k",
-                    4
-                )
-            ]
+            top_results = ranked_results[:int(top_k)]
 
             num_columns = 4
 
@@ -226,14 +264,14 @@ def render_tinyclip_tab():
                     len(row)
                 )
 
-                for column, (
+                for idx, (column, (
                     image_name,
                     image,
                     score
-                ) in zip(
+                )) in enumerate(zip(
                     columns,
                     row
-                ):
+                )):
 
                     column.image(
                         image,
@@ -241,9 +279,20 @@ def render_tinyclip_tab():
                             f"{image_name}\n"
                             f"{score:.4f}"
                         ),
-                        width="stretch",
-                        
+                        use_container_width=True
                     )
+
+                    uploaded_file = image_lookup.get(image_name)
+                    if uploaded_file:
+                        uploaded_file.seek(0)
+                        orig_bytes = uploaded_file.getvalue()
+                        column.download_button(
+                            label="📥 Download",
+                            data=orig_bytes,
+                            file_name=image_name,
+                            mime=uploaded_file.type,
+                            key=f"dl_tinyclip_{image_name}_{start_idx}_{idx}"
+                        )
 
             # ==============================
             # SCORE GRAPH

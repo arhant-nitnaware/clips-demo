@@ -377,7 +377,8 @@ async def clip4clip_search(
     file: Optional[UploadFile] = File(None),
     video_path: Optional[str] = Form(None),
     query: str = Form(...),
-    max_frames: int = Form(12)
+    max_frames: int = Form(12),
+    top_k: int = Form(4)
 ):
     """Run text-to-video search on extracted frames using CLIP4Clip."""
     temp_path = None
@@ -393,7 +394,7 @@ async def clip4clip_search(
         if not os.path.exists(path_to_use):
             raise HTTPException(status_code=400, detail=f"Video file not found: {path_to_use}")
             
-        return run_clip4clip_retrieval(query, path_to_use, max_frames)
+        return run_clip4clip_retrieval(query, path_to_use, max_frames, top_k)
     except Exception as e:
         raise handle_exception(e)
     finally:
@@ -470,7 +471,8 @@ async def clap_search(
     file: Optional[UploadFile] = File(None),
     video_path: Optional[str] = Form(None),
     query: str = Form(...),
-    segment_seconds: float = Form(5.0)
+    segment_seconds: float = Form(5.0),
+    top_k: int = Form(4)
 ):
     """Run text-to-audio search on segments of an audio or video file using CLAP."""
     temp_path = None
@@ -486,7 +488,7 @@ async def clap_search(
         if not os.path.exists(path_to_use):
             raise HTTPException(status_code=400, detail=f"Audio/video file not found: {path_to_use}")
             
-        return run_clap_retrieval(query, path_to_use, segment_seconds)
+        return run_clap_retrieval(query, path_to_use, segment_seconds, top_k)
     except Exception as e:
         raise handle_exception(e)
     finally:
@@ -532,7 +534,8 @@ async def av_search(
     query: str = Form(...),
     visual_weight: float = Form(0.5),
     audio_weight: float = Form(0.5),
-    segment_seconds: float = Form(5.0)
+    segment_seconds: float = Form(5.0),
+    top_k: int = Form(4)
 ):
     """Run fused Audio+Video search on segments of a video file using CLIP4Clip and CLAP."""
     temp_path = None
@@ -553,7 +556,8 @@ async def av_search(
             video_path=path_to_use,
             visual_weight=visual_weight,
             audio_weight=audio_weight,
-            segment_seconds=segment_seconds
+            segment_seconds=segment_seconds,
+            top_k=top_k
         )
     except Exception as e:
         raise handle_exception(e)

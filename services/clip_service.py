@@ -59,8 +59,8 @@ def run_clip_labeling(image_path: str, labels: list[str]) -> dict:
 # CLIP4CLIP SERVICES
 # ==========================================
 
-def run_clip4clip_retrieval(query: str, video_path: str, max_frames: int = 12) -> dict:
-    """Run CLIP4Clip video frame retrieval, returning base64 images for the top 4 matching frames."""
+def run_clip4clip_retrieval(query: str, video_path: str, max_frames: int = 12, top_k: int = 4) -> dict:
+    """Run CLIP4Clip video frame retrieval, returning base64 images for the top_k matching frames."""
     import io
     import base64
     from PIL import Image
@@ -78,9 +78,9 @@ def run_clip4clip_retrieval(query: str, video_path: str, max_frames: int = 12) -
         raise ValueError(f"Could not extract frames from video at {video_path}")
     result = query_video(processor, model, frames, query)
     
-    # Return top 4 results with base64 image frames
+    # Return top_k results with base64 image frames
     formatted_results = []
-    for r in result["frame_scores"][:4]:
+    for r in result["frame_scores"][:top_k]:
         frame_idx = int(r[0])
         score = float(r[1])
         b64_image = frame_to_b64(frames[frame_idx])

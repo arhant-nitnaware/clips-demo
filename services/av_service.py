@@ -10,7 +10,8 @@ def run_av_retrieval_service(
     visual_weight: float = 0.5,
     audio_weight: float = 0.5,
     segment_seconds: float = 5.0,
-    max_frames: int = 8
+    max_frames: int = 8,
+    top_k: int = 4
 ) -> dict:
     """Run fused Audio+Video retrieval on a video file and return JSON-serializable results."""
     # Retrieve cached models from model manager
@@ -64,7 +65,7 @@ def run_av_retrieval_service(
         audio_weight
     )
     
-    # Format results to be JSON-serializable (strip frame arrays, encode representative frame to base64, keep top 4)
+    # Format results to be JSON-serializable (strip frame arrays, encode representative frame to base64, keep top_k)
     import io
     import base64
     from PIL import Image
@@ -79,7 +80,7 @@ def run_av_retrieval_service(
     formatted_results = []
     for idx, r in enumerate(result["results"]):
         b64_image = ""
-        if idx < 4 and r.get("frames") and len(r["frames"]) > 0:
+        if idx < top_k and r.get("frames") and len(r["frames"]) > 0:
             b64_image = frame_to_b64(r["frames"][0])
             
         formatted_results.append({

@@ -29,6 +29,40 @@ def render_clap_tab():
         st.audio(uploaded)
 
     # ==========================================
+    # AUDIO METADATA (via API)
+    # ==========================================
+
+    API_URL = "http://localhost:8000"
+    uploaded.seek(0)
+    files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+    duration = 0.0
+    sample_rate = 0
+    file_size_mb = 0.0
+
+    try:
+        response = requests.post(f"{API_URL}/media/info", files=files_payload)
+        if response.status_code == 200:
+            media_data = response.json()
+            duration = media_data.get("duration", 0.0)
+            sample_rate = media_data.get("sample_rate", 0)
+            file_size_mb = media_data.get("file_size_mb", 0.0)
+        else:
+            st.error(f"Error getting audio info: {response.text}")
+    except Exception as e:
+        st.error(f"Connection error: {e}")
+
+    st.markdown("---")
+    st.subheader("Audio Information")
+    info_col1, info_col2, info_col3 = st.columns(3)
+    with info_col1:
+        st.metric("Duration", f"{duration:.2f}s")
+    with info_col2:
+        st.metric("Sample Rate", f"{sample_rate} Hz" if sample_rate > 0 else "N/A")
+    with info_col3:
+        st.metric("File Size", f"{file_size_mb:.2f} MB")
+    st.markdown("---")
+
+    # ==========================================
     # TASK SELECTOR
     # ==========================================
 
@@ -194,7 +228,7 @@ def render_clap_tab():
             API_URL = "http://localhost:8000"
             uploaded.seek(0)
             files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
-            data = {"query": query, "segment_seconds": float(segment_seconds)}
+            data = {"query": query, "segment_seconds": float(segment_seconds), "top_k": int(top_k)}
             try:
                 response = requests.post(f"{API_URL}/clap/search", files=files, data=data)
                 if response.status_code == 200:
@@ -227,12 +261,7 @@ def render_clap_tab():
                 "results"
             ]
 
-            top_segments = ranked_segments[
-                :st.session_state.get(
-                    "clap_top_k",
-                    4
-                )
-            ]
+            top_segments = ranked_segments[:int(top_k)]
 
             # ==================================
             # TOP SEGMENTS

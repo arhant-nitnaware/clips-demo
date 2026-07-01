@@ -1,400 +1,328 @@
-# Multimodal AI Inference Backend & Streamlit Application
+# Multimodal AI Inference API Developer Guide
 
-This project exposes the existing Multimodal Machine Learning (ML) inference pipeline through a **FastAPI backend** while preserving the **Streamlit frontend application**. Both components share a centralized **Model Manager** to load and cache models efficiently without duplication.
+This repository contains the **Multimodal AI REST API** backend and **Streamlit** client application. The backend exposes state-of-the-art multimodal models—**CLIP**, **TinyCLIP**, **CLIP4Clip**, and **CLAP**—over REST endpoints. Both applications share a centralized **Model Manager** to cache weights in CPU/GPU memory.
 
 ---
 
-## 1. Installation
+## 1. Quick Start
 
-Install all required Python packages:
-
+### Installation
+Install all dependencies inside a virtual environment:
 ```bash
 pip install -r requirements.txt
 ```
 
----
-
-## 2. How to Run
-
-### Streamlit Application
-
-To start the interactive web user interface:
-
-```bash
-streamlit run app.py
-```
-
-### FastAPI Backend
-
-To start the FastAPI REST API server (runs on `http://localhost:8000` by default):
-
+### Run FastAPI Backend
+Start the REST API server on `http://localhost:8000`:
 ```bash
 python api.py
 ```
-
-Or run via Uvicorn directly:
-
+Or start manually via Uvicorn:
 ```bash
 uvicorn api:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-*Note: All models are loaded and cached into GPU/CPU memory on FastAPI startup.*
+### Run Streamlit Client
+Start the web demonstration client:
+```bash
+streamlit run app.py
+```
 
 ---
 
-## 3. Exposing Features via FastAPI (How to Upload Files or Use Local Paths)
+## 2. Frontend Integration Guide
 
-Every endpoint supports **both** uploading files via standard multipart form data (`file`/`files`) **and** specifying a path to a file already on the server (`video_path`/`image_paths`).
+All inference APIs expect inputs sent as **Multipart Form Data** (`multipart/form-data`). This allows uploading raw binary files directly from the browser's `<input type="file">` element.
 
-### 1. Health & Models Info
+### Uploading Media via JavaScript `fetch`
+To query the API from a frontend application (e.g., React, Vue, or Vanilla JS):
 
-#### Check API Health (`GET /health`)
-* **Request:**
-  ```bash
-  curl -X GET http://localhost:8000/health
-  ```
+```javascript
+async function searchVideoFrames(fileBlob, queryText, topK = 6) {
+  const formData = new FormData();
+  // Upload the binary file
+  formData.append("file", fileBlob, "user-video.mp4");
+  // Set parameters
+  formData.append("query", queryText);
+  formData.append("top_k", topK);
+  formData.append("max_frames", 12);
+
+  try {
+    const response = await fetch("http://localhost:8000/clip4clip/search", {
+      method: "POST",
+      body: formData // Browser automatically sets Content-Type to multipart/form-data
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "API request failed");
+    }
+
+    const data = await response.json();
+    console.log("Query Time:", data.time_taken);
+    return data.results; // Array of top matching frames
+  } catch (error) {
+    console.error("Inference Error:", error.message);
+  }
+}
+```
+
+### Rendering Base64 Frame Images in React / HTML
+The video frame retrieval (`/clip4clip/search`) and AV temporal fusion (`/av/search`) endpoints return matching frames encoded as **Base64 Data URIs** under the `"image"` field. 
+
+You can bind these directly to the `src` attribute of a standard HTML `<img>` tag:
+
+```jsx
+// React Component to render matching frame results
+function FrameResult({ frameIndex, score, base64Image }) {
+  return (
+    <div className="frame-card">
+      <h4>Frame {frameIndex} (Score: {score.toFixed(4)})</h4>
+      {base64Image ? (
+        <img 
+          src={base64Image} 
+          alt={`Matching frame ${frameIndex}`} 
+          style={{ width: '100%', borderRadius: '8px' }} 
+        />
+      ) : (
+        <p>No preview frame available</p>
+      )}
+    </div>
+  );
+}
+```
+
+### Playing Base64 Audio Segments in HTML5
+The CLAP audio segment retrieval (`/clap/search`) endpoint returns base64-encoded WAV files under the `"audio"` field. 
+
+You can bind these directly to the `<audio>` player's `src` attribute:
+
+```javascript
+// Playing retrieved base64 audio dynamically in JavaScript
+function playAudioSegment(base64AudioString) {
+  const audioPlayer = new Audio(base64AudioString); // base64AudioString looks like "data:audio/wav;base64,..."
+  audioPlayer.play();
+}
+```
+
+---
+
+## 3. Complete API Specifications
+
+### Common Response Headers
+All endpoints support **CORS** (Cross-Origin Resource Sharing) with the following default headers:
+- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Methods: *`
+- `Access-Control-Allow-Headers: *`
+
+### General Error Response Schema
+Whenever an error occurs (such as a missing audio track in video processing, invalid files, or runtime exceptions), the API returns a `500` or `400` status code with a descriptive detail payload:
+```json
+{
+  "detail": "No audio stream found in the video file."
+}
+```
+
+---
+
+### A. Media Metadata Endpoint
+
+#### `POST /media/info`
+Extracts duration, framerate, resolution, audio sample rate, and size from a media file.
+* **Request Params (`multipart/form-data`):**
+  - `file`: `UploadFile` (Optional binary file upload)
+  - `video_path`: `str` (Optional path to a local server file if not uploading)
 * **Response:**
   ```json
   {
-    "status": "healthy"
+    "duration": 12.34,
+    "fps": 29.97,
+    "frame_count": 370,
+    "resolution": "1920x1080",
+    "sample_rate": 48000,
+    "file_size_mb": 4.12
   }
   ```
 
-#### Retrieve Cache Status (`GET /models`)
-* **Request:**
-  ```bash
-  curl -X GET http://localhost:8000/models
-  ```
+---
+
+### B. OpenAI CLIP (Image Encoders)
+
+#### `POST /clip/search`
+Compares a query string against a batch of images and ranks them by similarity.
+* **Request Params (`multipart/form-data`):**
+  - `files`: `List[UploadFile]` (Optional list of image file uploads)
+  - `image_paths`: `List[str]` (Optional list of local server image paths if not uploading)
+  - `query`: `str` (Search description query, e.g., `"a red sports car"`)
 * **Response:**
   ```json
   {
-    "clip": "Loaded",
-    "clip4clip": "Loaded",
-    "clap": "Loaded",
-    "tinyclip": "Loaded"
-  }
-  ```
-
----
-
-### 2. OpenAI CLIP Endpoints (Image)
-
-#### Image Retrieval (`POST /clip/search`)
-Search over a set of images using a query.
-* **Request (Uploading Files):**
-  ```bash
-  curl -X POST http://localhost:8000/clip/search \
-    -F "files=@dataset/dogs/black-dog.jpg" \
-    -F "files=@dataset/dogs/white-dog.jpg" \
-    -F "query=a white dog"
-  ```
-* **Request (Using Paths):**
-  ```bash
-  curl -X POST http://localhost:8000/clip/search \
-    -F "image_paths=dataset/dogs/black-dog.jpg" \
-    -F "image_paths=dataset/dogs/white-dog.jpg" \
-    -F "query=a white dog"
-  ```
-* **Response Example:**
-  ```json
-  {
-    "query": "a white dog",
-    "time_taken": 0.1423,
+    "query": "a red sports car",
+    "time_taken": 0.1245,
     "results": [
-      {
-        "image_path": "white-dog.jpg",
-        "score": 0.2854
-      },
-      {
-        "image_path": "black-dog.jpg",
-        "score": 0.1102
-      }
+      { "image_path": "car1.jpg", "score": 0.2842 },
+      { "image_path": "car2.jpg", "score": 0.1105 }
     ]
   }
   ```
 
-#### Image Labeling (`POST /clip/label`)
-Run zero-shot classification on an image.
-* **Request (Uploading File):**
-  ```bash
-  curl -X POST http://localhost:8000/clip/label \
-    -F "file=@dataset/dogs/brown-dog.jpg" \
-    -F "labels_str=a puppy,a cat,a bird,nature"
-  ```
-* **Response Example:**
+#### `POST /clip/label`
+Run zero-shot classification on a single image.
+* **Request Params (`multipart/form-data`):**
+  - `file`: `UploadFile` (Optional image file upload)
+  - `image_path`: `str` (Optional local image path)
+  - `labels_str`: `str` (Comma-separated candidate labels, e.g., `"nature,car,city,dog"`)
+* **Response:**
   ```json
   {
-    "time_taken": 0.0852,
+    "time_taken": 0.0812,
     "results": [
-      {
-        "label": "a puppy",
-        "score": 0.8241
-      },
-      {
-        "label": "a cat",
-        "score": 0.1032
-      },
-      {
-        "label": "nature",
-        "score": 0.0521
-      },
-      {
-        "label": "a bird",
-        "score": 0.0206
-      }
+      { "label": "nature", "score": 0.8125 },
+      { "label": "city", "score": 0.1204 }
     ]
   }
   ```
 
 ---
 
-### 3. TinyCLIP Endpoints (Lightweight Image)
+### C. TinyCLIP (Lightweight Image Encoders)
+Provides the same image search and zero-shot labeling capabilities as standard CLIP, but uses a highly optimized, resource-efficient architecture.
 
-#### Image Retrieval (`POST /tinyclip/search`)
-* **Request (Using Paths):**
-  ```bash
-  curl -X POST http://localhost:8000/tinyclip/search \
-    -F "image_paths=dataset/dogs/brown-dog.jpg" \
-    -F "image_paths=dataset/dogs/golden-dog.jpg" \
-    -F "query=golden retriever puppy"
-  ```
-* **Response Example:**
-  ```json
-  {
-    "query": "golden retriever puppy",
-    "time_taken": 0.0912,
-    "results": [
-      {
-        "image_path": "golden-dog.jpg",
-        "score": 0.2914
-      },
-      {
-        "image_path": "brown-dog.jpg",
-        "score": 0.1245
-      }
-    ]
-  }
-  ```
+#### `POST /tinyclip/search`
+* **Request Params (`multipart/form-data`):**
+  - `files`: `List[UploadFile]`
+  - `image_paths`: `List[str]`
+  - `query`: `str`
+* **Response:** same format as `/clip/search`.
 
-#### Image Labeling (`POST /tinyclip/label`)
-* **Request (Uploading File):**
-  ```bash
-  curl -X POST http://localhost:8000/tinyclip/label \
-    -F "file=@dataset/dogs/golden-dog.jpg" \
-    -F "labels_str=puppy,cat,car"
-  ```
-* **Response Example:**
-  ```json
-  {
-    "time_taken": 0.0654,
-    "results": [
-      {
-        "label": "puppy",
-        "score": 0.7421
-      },
-      {
-        "label": "cat",
-        "score": 0.1852
-      },
-      {
-        "label": "car",
-        "score": 0.0727
-      }
-    ]
-  }
-  ```
+#### `POST /tinyclip/label`
+* **Request Params (`multipart/form-data`):**
+  - `file`: `UploadFile`
+  - `image_path`: `str`
+  - `labels_str`: `str`
+* **Response:** same format as `/clip/label`.
 
 ---
 
-### 4. CLIP4Clip Endpoints (Video)
+### D. CLIP4Clip (Video Frame Encoders)
 
-#### Frame Retrieval (`POST /clip4clip/search`)
-Find which video frames best match the query.
-* **Request (Uploading File):**
-  ```bash
-  curl -X POST http://localhost:8000/clip4clip/search \
-    -F "file=@demo_videos/video-search.mp4" \
-    -F "query=a car driving by" \
-    -F "max_frames=12"
-  ```
-* **Response Example:**
+#### `POST /clip4clip/search`
+Compares video frames to a text query, and returns the top matching frames.
+* **Request Params (`multipart/form-data`):**
+  - `file`: `UploadFile` (Optional video file upload)
+  - `video_path`: `str` (Optional local video path)
+  - `query`: `str` (Visual target query)
+  - `max_frames`: `int` (Default: `12`. Total frames to sample from the video)
+  - `top_k`: `int` (Default: `4`. Number of top matching frames to return with Base64 representations)
+* **Response:**
   ```json
   {
-    "query": "a car driving by",
-    "time_taken": 0.8521,
+    "query": "a yellow race car",
+    "time_taken": 0.6543,
     "results": [
       {
-        "frame_index": 5,
-        "score": 0.3125,
+        "frame_index": 8,
+        "score": 0.2981,
         "image": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
-      },
-      {
-        "frame_index": 12,
-        "score": 0.1843,
-        "image": "data:image/jpeg;base64,/9j/4QBYRXhpZg..."
       }
+    ],
+    "all_scores": [
+      { "frame_index": 0, "score": 0.0821 },
+      { "frame_index": 8, "score": 0.2981 }
     ]
   }
   ```
 
-#### Video Labeling (`POST /clip4clip/label`)
-Classify the video content zero-shot.
-* **Request (Uploading File):**
-  ```bash
-  curl -X POST http://localhost:8000/clip4clip/label \
-    -F "file=@demo_videos/video-search.mp4" \
-    -F "labels_str=driving in city,sports event,nature scene"
-  ```
-* **Response Example:**
-  ```json
-  {
-    "time_taken": 0.7241,
-    "results": [
-      {
-        "label": "driving in city",
-        "score": 0.6542
-      },
-      {
-        "label": "nature scene",
-        "score": 0.2415
-      },
-      {
-        "label": "sports event",
-        "score": 0.1043
-      }
-    ]
-  }
-  ```
+#### `POST /clip4clip/label`
+Run zero-shot video classification based on visual temporal features.
+* **Request Params (`multipart/form-data`):**
+  - `file`: `UploadFile`
+  - `video_path`: `str`
+  - `labels_str`: `str` (Comma-separated candidate labels)
+  - `max_frames`: `int` (Total frames to sample from the video)
+* **Response:** same format as `/clip/label`.
 
-#### Video Similarity (`POST /clip4clip/similarity`)
-Rank multiple prompt options against the video content.
-* **Request (Uploading File):**
-  ```bash
-  curl -X POST http://localhost:8000/clip4clip/similarity \
-    -F "file=@demo_videos/video-search.mp4" \
-    -F "prompts_str=a racing vehicle,a parked car,a nature view"
-  ```
-* **Response Example:**
+#### `POST /clip4clip/similarity`
+Compute temporal similarity curves between a video and multiple text prompts.
+* **Request Params (`multipart/form-data`):**
+  - `file`: `UploadFile`
+  - `video_path`: `str`
+  - `prompts_str`: `str` (Comma-separated prompts)
+  - `max_frames`: `int`
+* **Response:**
   ```json
   {
     "results": [
-      {
-        "prompt": "a racing vehicle",
-        "score": 0.4125
-      },
-      {
-        "prompt": "a parked car",
-        "score": 0.1842
-      },
-      {
-        "prompt": "a nature view",
-        "score": 0.0763
-      }
+      { "prompt": "a car driving left to right", "score": 0.3541 },
+      { "prompt": "a nature scene", "score": 0.0412 }
     ]
   }
   ```
 
 ---
 
-### 5. CLAP Endpoints (Audio)
+### E. CLAP (Contrastive Language-Audio Pretraining)
+*Note: Audio operations will return a `500` error with `No audio stream found in the video file.` if the input file does not contain a valid audio track.*
 
-#### Audio Segment Retrieval (`POST /clap/search`)
-Split audio into segments and rank them by query similarity.
-* **Request (Uploading File):**
-  ```bash
-  curl -X POST http://localhost:8000/clap/search \
-    -F "file=@demo_videos/audio-search.mp4" \
-    -F "query=roaring engines" \
-    -F "segment_seconds=5.0"
-  ```
-* **Response Example:**
+#### `POST /clap/search`
+Segments the audio track of a file and ranks audio segments based on query similarity.
+* **Request Params (`multipart/form-data`):**
+  - `file`: `UploadFile` (Optional audio or video file upload)
+  - `video_path`: `str` (Optional local audio/video path)
+  - `query`: `str` (Audio descriptor query, e.g. `"dog barking"`)
+  - `segment_seconds`: `float` (Duration of each audio segment window in seconds)
+  - `top_k`: `int` (Default: `4`. Number of matching audio segments to return with Base64 audio arrays)
+* **Response:**
   ```json
   {
-    "query": "roaring engines",
-    "time_taken": 0.4287,
+    "query": "dog barking",
+    "time_taken": 0.3512,
     "results": [
       {
-        "start_time": 2.0,
-        "end_time": 4.0,
-        "score": 0.6521
-      },
-      {
-        "start_time": 0.0,
-        "end_time": 2.0,
-        "score": 0.1245
+        "start_time": 6.0,
+        "end_time": 9.0,
+        "score": 0.7241,
+        "audio": "data:audio/wav;base64,UklGRtS5AgBXQV..."
       }
     ]
   }
   ```
 
-#### Audio Labeling (`POST /clap/label`)
-Run zero-shot classification on the full audio track.
-* **Request (Uploading File):**
-  ```bash
-  curl -X POST http://localhost:8000/clap/label \
-    -F "file=@demo_videos/audio-search.mp4" \
-    -F "labels_str=car engine,dog barking,people talking,applause"
-  ```
-* **Response Example:**
-  ```json
-  {
-    "time_taken": 0.3842,
-    "results": [
-      {
-        "label": "car engine",
-        "score": 0.7842
-      },
-      {
-        "label": "dog barking",
-        "score": 0.0954
-      },
-      {
-        "label": "people talking",
-        "score": 0.0821
-      },
-      {
-        "label": "applause",
-        "score": 0.0383
-      }
-    ]
-  }
-  ```
+#### `POST /clap/label`
+Classify the full audio track zero-shot.
+* **Request Params (`multipart/form-data`):**
+  - `file`: `UploadFile`
+  - `video_path`: `str`
+  - `labels_str`: `str` (Comma-separated candidate audio events)
+* **Response:** same format as `/clip/label`.
 
 ---
 
-### 6. Audio+Video Fusion Endpoint (`POST /av/search`)
+### F. Audio+Video Fusion Encoders
 
-Combines both visual (CLIP4Clip) and audio (CLAP) encoders to rank video segments by temporal visual+audio similarity to the query.
-* **Request (Uploading File):**
-  ```bash
-  curl -X POST http://localhost:8000/av/search \
-    -F "file=@demo_videos/av-search.mp4" \
-    -F "query=helicopter blades roaring" \
-    -F "visual_weight=0.5" \
-    -F "audio_weight=0.5" \
-    -F "segment_seconds=5.0"
-  ```
-* **Response Example:**
+#### `POST /av/search`
+Combines visual (CLIP4Clip) and audio (CLAP) features synchronously to find sections of a video that match a multimodal query.
+* **Request Params (`multipart/form-data`):**
+  - `file`: `UploadFile` (Optional video file upload)
+  - `video_path`: `str` (Optional local video path)
+  - `query`: `str` (Target query description)
+  - `visual_weight`: `float` (Default: `0.5`. Weight given to the visual model similarity score)
+  - `audio_weight`: `float` (Default: `0.5`. Weight given to the audio model similarity score)
+  - `segment_seconds`: `float` (Default: `5.0`. Duration of each segment)
+  - `top_k`: `int` (Default: `4`. Number of results to return with representative frames)
+* **Response:**
   ```json
   {
     "query": "helicopter blades roaring",
-    "time_taken": 1.2541,
+    "time_taken": 1.4589,
     "results": [
       {
-        "start_time": 3.0,
-        "end_time": 6.0,
-        "visual_score": 0.2851,
-        "audio_score": 0.7423,
-        "fused_score": 0.4680,
+        "start_time": 5.0,
+        "end_time": 10.0,
+        "visual_score": 0.4512,
+        "audio_score": 0.8124,
+        "fused_score": 0.6318,
         "image": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
-      },
-      {
-        "start_time": 0.0,
-        "end_time": 3.0,
-        "visual_score": 0.3214,
-        "audio_score": 0.2105,
-        "fused_score": 0.2770,
-        "image": "data:image/jpeg;base64,/9j/4QBYRXhpZg..."
       }
     ]
   }
