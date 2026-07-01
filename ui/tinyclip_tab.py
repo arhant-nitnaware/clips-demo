@@ -1,15 +1,8 @@
 import matplotlib.pyplot as plt
 import streamlit as st
+import requests
 
 from PIL import Image
-
-from inference.tinyclip_infer import (
-    run_tinyclip
-)
-
-from inference.tinyclip_retrieval import (
-    retrieve_tinyclip_images
-)
 
 from utils.report import (
     show_report
@@ -84,18 +77,26 @@ def render_tinyclip_tab():
                 if label.strip()
             ]
 
-            result = run_tinyclip(
-                st.session_state
-                .tinyclip_pipe,
-
-                image,
-
-                labels
-            )
-
-            st.session_state[
-                "tinyclip_result"
-            ] = result
+            API_URL = "http://localhost:8000"
+            uploaded.seek(0)
+            files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+            data = {"labels_str": ",".join(labels)}
+            try:
+                response = requests.post(f"{API_URL}/tinyclip/label", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    result = {
+                        "time_taken": api_result["time_taken"],
+                        "results": api_result["results"],
+                        "input_details": {
+                            "Image Size": image.size
+                        }
+                    }
+                    st.session_state["tinyclip_result"] = result
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
         result = st.session_state.get(
             "tinyclip_result"
@@ -117,24 +118,6 @@ def render_tinyclip_tab():
     # ======================================
 
     else:
-
-        # ==============================
-        # SAFETY CHECK
-        # ==============================
-
-        if (
-            st.session_state
-            .tinyclip_model is None
-            or
-            st.session_state
-            .tinyclip_processor is None
-        ):
-
-            st.error(
-                "Reload TinyCLIP model."
-            )
-
-            return
 
         uploaded_images = (
             st.file_uploader(
@@ -180,27 +163,23 @@ def render_tinyclip_tab():
             key="tinyclip_retrieve_button"
         ):
 
-            result = (
-                retrieve_tinyclip_images(
-                    st.session_state
-                    .tinyclip_model,
-
-                    st.session_state
-                    .tinyclip_processor,
-
-                    query,
-
-                    uploaded_images
-                )
-            )
-
-            st.session_state[
-                "tinyclip_retrieval_result"
-            ] = result
-
-            st.session_state[
-                "tinyclip_top_k"
-            ] = top_k
+            API_URL = "http://localhost:8000"
+            files = []
+            for idx, uploaded in enumerate(uploaded_images):
+                uploaded.seek(0)
+                files.append(("files", (uploaded.name, uploaded.getvalue(), uploaded.type)))
+            
+            data = {"query": query}
+            try:
+                response = requests.post(f"{API_URL}/tinyclip/search", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    st.session_state["tinyclip_retrieval_result"] = api_result
+                    st.session_state["tinyclip_top_k"] = top_k
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
         result = st.session_state.get(
             "tinyclip_retrieval_result"
@@ -210,9 +189,17 @@ def render_tinyclip_tab():
 
             st.markdown("---")
 
-            ranked_results = result[
-                "results"
-            ]
+            # Map the results to (image_name, pil_image, score)
+            image_lookup = {uploaded.name: uploaded for uploaded in uploaded_images}
+            ranked_results = []
+            for r in result["results"]:
+                image_name = r["image_path"]
+                score = r["score"]
+                uploaded_file = image_lookup.get(image_name)
+                if uploaded_file:
+                    uploaded_file.seek(0)
+                    img = Image.open(uploaded_file).convert("RGB")
+                    ranked_results.append((image_name, img, score))
 
             top_results = ranked_results[
                 :st.session_state.get(

@@ -4,7 +4,15 @@ import tempfile
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 
-from models.model_manager import initialize_models, _models
+from models.model_manager import (
+    initialize_models,
+    _models,
+    get_clip,
+    get_clip4clip,
+    get_clap,
+    get_tinyclip,
+    unload_model_instance
+)
 from services.clip_service import (
     run_clip_retrieval,
     run_clip_labeling,
@@ -108,6 +116,118 @@ def get_models():
     return {
         name: ("Loaded" if val is not None else "Not Loaded")
         for name, val in _models.items()
+    }
+
+@app.post("/models/load/{model_name}")
+def load_model_endpoint(model_name: str):
+    """Load a model by name in the FastAPI backend."""
+    if model_name not in _models:
+        raise HTTPException(status_code=400, detail="Invalid model name")
+    
+    if model_name == "clip":
+        get_clip()
+    elif model_name == "clip4clip":
+        get_clip4clip()
+    elif model_name == "clap":
+        get_clap()
+    elif model_name == "tinyclip":
+        get_tinyclip()
+        
+    return {"status": "Loaded", "model": model_name}
+
+@app.post("/models/unload/{model_name}")
+def unload_model_endpoint(model_name: str):
+    """Unload a model by name from the FastAPI backend."""
+    if model_name not in _models:
+        raise HTTPException(status_code=400, detail="Invalid model name")
+        
+    unload_model_instance(model_name)
+    return {"status": "Not Loaded", "model": model_name}
+
+@app.post("/media/info")
+async def media_info(
+    file: Optional[UploadFile] = File(None),
+    video_path: Optional[str] = Form(None)
+):
+    """Extract metadata (duration, FPS, resolution, audio sample rate, size) from a video/audio file."""
+    import cv2
+    import soundfile as sf
+    from utils.video_utils import get_video_duration
+    from utils.audio_utils import extract_audio_from_video
+    
+    temp_path = None
+    try:
+        if file and file.filename:
+            temp_path = save_uploaded_file(file)
+            path_to_use = temp_path
+        elif video_path:
+            path_to_use = video_path
+        else:
+            raise HTTPException(status_code=400, detail="Must provide uploaded 'file' or 'video_path'.")
+            
+        if not os.path.exists(path_to_use):
+            raise HTTPException(status_code=400, detail=f"File not found: {path_to_use}")
+            
+        duration = 0.0
+        fps = 0.0
+        frame_count = 0
+        width = 0
+        height = 0
+        sample_rate = 0
+        file_size_mb = os.path.getsize(path_to_use) / (1024 * 1024)
+        
+        # Try to read video info
+        cap = cv2.VideoCapture(path_to_use)
+        if cap.isOpened():
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+            duration = get_video_duration(path_to_use)
+            
+        # Try to get audio info
+        try:
+            waveform, sample_rate = extract_audio_from_video(path_to_use)
+        except Exception:
+            try:
+                info = sf.info(path_to_use)
+                sample_rate = info.samplerate
+                duration = info.duration
+            except Exception:
+                sample_rate = 0
+                
+        return {
+            "duration": duration,
+            "fps": fps,
+            "frame_count": frame_count,
+            "resolution": f"{width}x{height}" if width > 0 else "N/A",
+            "sample_rate": sample_rate,
+            "file_size_mb": file_size_mb
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cleanup_file(temp_path)
+
+@app.get("/gpu")
+def get_gpu_info():
+    """Retrieve GPU memory usage info if CUDA is available."""
+    import torch
+    from utils.device import DEVICE
+    
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated() / 1024**3
+        reserved = torch.cuda.memory_reserved() / 1024**3
+        return {
+            "cuda_available": True,
+            "allocated_gb": allocated,
+            "reserved_gb": reserved,
+            "device": str(DEVICE)
+        }
+    return {
+        "cuda_available": False,
+        "device": str(DEVICE)
     }
 
 # ---------- CLIP (Image) ----------

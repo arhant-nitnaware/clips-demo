@@ -1,21 +1,7 @@
-import os
-import tempfile
-
 import matplotlib.pyplot as plt
-import soundfile as sf
 import streamlit as st
-
-from inference.clap_infer import (
-    run_clap
-)
-
-from inference.clap_retrieval import (
-    retrieve_audio_segments
-)
-
-from utils.audio_utils import (
-    split_audio_segments
-)
+import requests
+import base64
 
 from utils.report import (
     show_report
@@ -41,22 +27,6 @@ def render_clap_tab():
     with audio_col2:
 
         st.audio(uploaded)
-
-    with tempfile.NamedTemporaryFile(
-        suffix=".wav",
-        delete=False
-    ) as tmp:
-
-        tmp.write(uploaded.read())
-
-        audio_path = tmp.name
-
-    waveform, sample_rate = sf.read(
-        audio_path,
-        always_2d=False
-    )
-
-    os.unlink(audio_path)
 
     # ==========================================
     # TASK SELECTOR
@@ -136,26 +106,27 @@ def render_clap_tab():
                 if text.strip()
             ]
 
-            result = run_clap(
-                st.session_state
-                .clap_model,
-
-                st.session_state
-                .clap_tokenizer,
-
-                st.session_state
-                .clap_extractor,
-
-                waveform,
-
-                sample_rate,
-
-                texts
-            )
-
-            st.session_state[
-                "clap_label_result"
-            ] = result
+            API_URL = "http://localhost:8000"
+            uploaded.seek(0)
+            files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+            data = {"labels_str": ",".join(texts)}
+            try:
+                response = requests.post(f"{API_URL}/clap/label", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    result = {
+                        "time_taken": api_result["time_taken"],
+                        "results": api_result["results"],
+                        "input_details": {
+                            "Audio File": uploaded.name,
+                            "Number of Descriptions": len(texts)
+                        }
+                    }
+                    st.session_state["clap_label_result"] = result
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
         # ======================================
         # RESULT DISPLAY
@@ -220,42 +191,20 @@ def render_clap_tab():
             "Retrieve Audio Segments"
         ):
 
-            segments = split_audio_segments(
-                waveform,
-                sample_rate,
-                segment_seconds
-            )
-
-            result = retrieve_audio_segments(
-                st.session_state
-                .clap_model,
-
-                st.session_state
-                .clap_tokenizer,
-
-                st.session_state
-                .clap_extractor,
-
-                waveform,
-
-                sample_rate,
-
-                query,
-
-                segments
-            )
-
-            st.session_state[
-                "clap_retrieval_result"
-            ] = result
-
-            st.session_state[
-                "clap_segments"
-            ] = segments
-
-            st.session_state[
-                "clap_top_k"
-            ] = top_k
+            API_URL = "http://localhost:8000"
+            uploaded.seek(0)
+            files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+            data = {"query": query, "segment_seconds": float(segment_seconds)}
+            try:
+                response = requests.post(f"{API_URL}/clap/search", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    st.session_state["clap_retrieval_result"] = api_result
+                    st.session_state["clap_top_k"] = top_k
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
         # ======================================
         # RESULT DISPLAY
@@ -293,11 +242,11 @@ def render_clap_tab():
                 "### Top Matching Segments"
             )
 
-            for idx, (
-                start_t,
-                end_t,
-                score
-            ) in enumerate(top_segments):
+            for idx, segment in enumerate(top_segments):
+                start_t = segment["start_time"]
+                end_t = segment["end_time"]
+                score = segment["score"]
+                b64_audio = segment["audio"]
 
                 st.markdown(
                     f"""
@@ -312,44 +261,12 @@ def render_clap_tab():
                     """
                 )
 
-                start_sample = int(
-                    start_t * sample_rate
-                )
-
-                end_sample = int(
-                    end_t * sample_rate
-                )
-                
-                #ccccccccccccccccccccc
-                segment_audio = waveform[
-                    start_sample:end_sample
-                ]
-
-                # ensure mono
-                if segment_audio.ndim > 1:
-
-                    segment_audio = segment_audio.mean(
-                        axis=1
+                if b64_audio:
+                    audio_bytes = base64.b64decode(b64_audio.split(",")[1])
+                    st.audio(
+                        audio_bytes,
+                        format="audio/wav"
                     )
-
-                # convert dtype
-                segment_audio = (
-                    segment_audio.astype("float32")
-                )
-
-                # normalize safely
-                max_val = abs(segment_audio).max()
-
-                if max_val > 1.0:
-
-                    segment_audio = (
-                        segment_audio / max_val
-                    )
-
-                st.audio(
-                    segment_audio,
-                    sample_rate=sample_rate
-                )
 
         # ==================================
         # BAR GRAPH
@@ -361,22 +278,20 @@ def render_clap_tab():
 
         timeline_segments = sorted(
             ranked_segments,
-            key=lambda x: x[0]
+            key=lambda x: x["start_time"]
         )
 
         segment_labels = [
             (
-                f"{start:.0f}-"
-                f"{end:.0f}s"
+                f"{item['start_time']:.0f}-"
+                f"{item['end_time']:.0f}s"
             )
-            for start, end, _
-            in timeline_segments
+            for item in timeline_segments
         ]
 
         scores = [
-            score
-            for _, _, score
-            in timeline_segments
+            item["score"]
+            for item in timeline_segments
         ]
 
         x = list(

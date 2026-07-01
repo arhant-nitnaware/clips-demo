@@ -93,7 +93,11 @@ def run_clip4clip_retrieval(query: str, video_path: str, max_frames: int = 12) -
     return {
         "query": result["query"],
         "time_taken": float(result["time_taken"]),
-        "results": formatted_results
+        "results": formatted_results,
+        "all_scores": [
+            {"frame_index": int(r[0]), "score": float(r[1])}
+            for r in result["frame_scores"]
+        ]
     }
 
 def run_clip4clip_labeling(video_path: str, labels: list[str], max_frames: int = 12) -> dict:

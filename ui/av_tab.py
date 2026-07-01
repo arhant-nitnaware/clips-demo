@@ -1,22 +1,7 @@
-import os
-import tempfile
-
-import cv2
 import matplotlib.pyplot as plt
 import streamlit as st
-
-from utils.video_utils import (
-    extract_segment_frames,
-    get_video_duration
-)
-
-from utils.audio_utils import (
-    extract_audio_from_video
-)
-
-from inference.av_retrieval import (
-    run_av_retrieval
-)
+import requests
+import base64
 
 
 def render_av_tab():
@@ -47,68 +32,35 @@ def render_av_tab():
         st.video(uploaded)
 
     # =====================================
-    # SAVE TEMP VIDEO
+    # VIDEO METADATA (via API)
     # =====================================
 
-    with tempfile.NamedTemporaryFile(
-        suffix=".mp4",
-        delete=False
-    ) as tmp:
+    API_URL = "http://localhost:8000"
 
-        tmp.write(uploaded.read())
+    uploaded.seek(0)
+    files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+    
+    duration = 0.0
+    fps = 0.0
+    frame_count = 0
+    resolution = "N/A"
+    sample_rate = 0
+    file_size_mb = 0.0
 
-        video_path = tmp.name
-
-    # =====================================
-    # VIDEO METADATA
-    # =====================================
-
-    cap = cv2.VideoCapture(
-        video_path
-    )
-
-    fps = cap.get(
-        cv2.CAP_PROP_FPS
-    )
-
-    frame_count = int(
-        cap.get(
-            cv2.CAP_PROP_FRAME_COUNT
-        )
-    )
-
-    width = int(
-        cap.get(
-            cv2.CAP_PROP_FRAME_WIDTH
-        )
-    )
-
-    height = int(
-        cap.get(
-            cv2.CAP_PROP_FRAME_HEIGHT
-        )
-    )
-
-    cap.release()
-
-    duration = get_video_duration(
-        video_path
-    )
-
-    file_size_mb = (
-        os.path.getsize(video_path)
-        / (1024 * 1024)
-    )
-
-    # =====================================
-    # AUDIO EXTRACTION
-    # =====================================
-
-    waveform, sample_rate = (
-        extract_audio_from_video(
-            video_path
-        )
-    )
+    try:
+        response = requests.post(f"{API_URL}/media/info", files=files_payload)
+        if response.status_code == 200:
+            media_data = response.json()
+            duration = media_data.get("duration", 0.0)
+            fps = media_data.get("fps", 0.0)
+            frame_count = media_data.get("frame_count", 0)
+            resolution = media_data.get("resolution", "N/A")
+            sample_rate = media_data.get("sample_rate", 0)
+            file_size_mb = media_data.get("file_size_mb", 0.0)
+        else:
+            st.error(f"Error getting video info: {response.text}")
+    except Exception as e:
+        st.error(f"Connection error: {e}")
 
     # =====================================
     # VIDEO INFORMATION
@@ -145,7 +97,7 @@ def render_av_tab():
 
         st.metric(
             "Resolution",
-            f"{width}×{height}"
+            resolution
         )
 
     with info_col3:
@@ -241,104 +193,24 @@ def render_av_tab():
         "Run Temporal Retrieval"
     ):
 
-        segments = []
-
-        current_t = 0.0
-
-        while current_t < duration:
-
-            end_t = min(
-                current_t
-                + segment_seconds,
-
-                duration
-            )
-
-            frames = (
-                extract_segment_frames(
-                    video_path,
-                    current_t,
-                    end_t,
-                    max_frames=
-                    max_frames
-                )
-            )
-
-            start_sample = int(
-                current_t
-                * sample_rate
-            )
-
-            end_sample = int(
-                end_t
-                * sample_rate
-            )
-
-            audio_segment = (
-                waveform[
-                    start_sample:
-                    end_sample
-                ]
-            )
-
-            if len(frames) == 0:
-
-                current_t += (
-                    segment_seconds
-                )
-
-                continue
-
-            segments.append({
-
-                "start_time":
-                    current_t,
-
-                "end_time":
-                    end_t,
-
-                "frames":
-                    frames,
-
-                "audio":
-                    audio_segment,
-
-                "sample_rate":
-                    sample_rate
-            })
-
-            current_t += (
-                segment_seconds
-            )
-
-        result = run_av_retrieval(
-
-            st.session_state
-            .clip4clip_processor,
-
-            st.session_state
-            .clip4clip_model,
-
-            st.session_state
-            .clap_model,
-
-            st.session_state
-            .clap_tokenizer,
-
-            st.session_state
-            .clap_extractor,
-
-            segments,
-
-            query,
-
-            visual_weight,
-            audio_weight
-        )
-
-        st.session_state[
-            "av_result"
-        ] = result
+        API_URL = "http://localhost:8000"
+        uploaded.seek(0)
+        files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+        data = {
+            "query": query,
+            "visual_weight": float(visual_weight),
+            "audio_weight": float(audio_weight),
+            "segment_seconds": float(segment_seconds)
+        }
+        try:
+            response = requests.post(f"{API_URL}/av/search", files=files, data=data)
+            if response.status_code == 200:
+                api_result = response.json()
+                st.session_state["av_result"] = api_result
+            else:
+                st.error(f"Error from API: {response.text}")
+        except Exception as e:
+            st.error(f"Connection error: {e}")
 
     # =====================================
     # RESULT HANDLING
@@ -453,23 +325,9 @@ def render_av_tab():
                     f"{audio_score:.4f}"
                 )
 
-            preview_frames = segment[
-                "frames"
-            ][:1]
-
-            cols = st.columns(
-                len(preview_frames)
-            )
-
-            for col, frame in zip(
-                cols,
-                preview_frames
-            ):
-
-                col.image(
-                    frame,
-                    width=500
-                )
+            b64_image = segment.get("image")
+            if b64_image:
+                st.image(b64_image, width=500)
 
             st.markdown("---")
 
@@ -586,5 +444,3 @@ def render_av_tab():
             f"Inference Time: "
             f"{result['time_taken']:.4f}s"
         )
-
-    os.unlink(video_path)

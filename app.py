@@ -1,28 +1,33 @@
 import streamlit as st
-import torch
-from utils.device import DEVICE
+import requests
 
-try:
-    HF_KEY = st.secrets["HF_KEY"]
-except Exception:
-    HF_KEY = None
+API_URL = "http://localhost:8000"
 
-from transformers.utils import logging
-logging.set_verbosity_error()
+def get_backend_models():
+    try:
+        response = requests.get(f"{API_URL}/models")
+        if response.status_code == 200:
+            return response.json()
+    except Exception:
+        pass
+    return {
+        "clip": "Not Loaded",
+        "clip4clip": "Not Loaded",
+        "clap": "Not Loaded",
+        "tinyclip": "Not Loaded"
+    }
 
-import warnings
-warnings.filterwarnings("ignore")
+def load_backend_model(model_name: str):
+    try:
+        requests.post(f"{API_URL}/models/load/{model_name}")
+    except Exception:
+        pass
 
-from utils.model_man import (
-    unload_model
-)
-
-from models.model_manager import (
-    get_clip,
-    get_clip4clip,
-    get_clap,
-    get_tinyclip
-)
+def unload_backend_model(model_name: str):
+    try:
+        requests.post(f"{API_URL}/models/unload/{model_name}")
+    except Exception:
+        pass
 
 from ui.clip4clip_tab import (
     render_clip4clip_tab
@@ -241,6 +246,19 @@ if (
         "clip_loading"
     ] = False
 
+# Query backend models status
+backend_models = get_backend_models()
+
+clip4clip_loaded = backend_models.get("clip4clip") == "Loaded"
+clap_loaded = backend_models.get("clap") == "Loaded"
+tinyclip_loaded = backend_models.get("tinyclip") == "Loaded"
+clip_loaded = backend_models.get("clip") == "Loaded"
+
+clip4clip_loading = st.session_state.get("clip4clip_loading", False)
+clap_loading = st.session_state.get("clap_loading", False)
+tinyclip_loading = st.session_state.get("tinyclip_loading", False)
+clip_loading = st.session_state.get("clip_loading", False)
+
 # ==========================================
 # SIDEBAR
 # ==========================================
@@ -252,15 +270,6 @@ with st.sidebar:
     st.subheader("CLIP4Clip")
 
     col1, col2 = st.columns(2)
-
-    clip4clip_loaded = (
-        st.session_state.clip4clip_model
-        is not None
-    )
-
-    clip4clip_loading = (
-        st.session_state.clip4clip_loading
-    )
 
     with col1:
 
@@ -294,10 +303,7 @@ with st.sidebar:
             )
         ):
 
-            unload_model(
-                "clip4clip_model",
-                "clip4clip_processor"
-            )
+            unload_backend_model("clip4clip")
 
             st.rerun()
 
@@ -324,15 +330,6 @@ with st.sidebar:
     st.subheader("CLAP")
 
     col1, col2 = st.columns(2)
-
-    clap_loaded = (
-        st.session_state.clap_model
-        is not None
-    )
-
-    clap_loading = (
-        st.session_state.clap_loading
-    )
 
     with col1:
 
@@ -366,11 +363,7 @@ with st.sidebar:
             )
         ):
 
-            unload_model(
-                "clap_model",
-                "clap_tokenizer",
-                "clap_extractor"
-            )
+            unload_backend_model("clap")
 
             st.rerun()
 
@@ -397,15 +390,6 @@ with st.sidebar:
     st.subheader("TinyCLIP")
 
     col1, col2 = st.columns(2)
-
-    tinyclip_loaded = (
-        st.session_state.tinyclip_model
-        is not None
-    )
-
-    tinyclip_loading = (
-        st.session_state.tinyclip_loading
-    )
 
     with col1:
 
@@ -439,11 +423,7 @@ with st.sidebar:
             )
         ):
 
-            unload_model(
-                "tinyclip_pipe",
-                "tinyclip_model",
-                "tinyclip_processor"
-            )
+            unload_backend_model("tinyclip")
 
             st.rerun()
 
@@ -470,15 +450,6 @@ with st.sidebar:
     st.subheader("Original CLIP")
 
     col1, col2 = st.columns(2)
-
-    clip_loaded = (
-        st.session_state.clip_model
-        is not None
-    )
-
-    clip_loading = (
-        st.session_state.clip_loading
-    )
 
     with col1:
 
@@ -512,10 +483,7 @@ with st.sidebar:
             )
         ):
 
-            unload_model(
-                "clip_model",
-                "clip_processor"
-            )
+            unload_backend_model("clip")
 
             st.rerun()
 
@@ -539,53 +507,27 @@ with st.sidebar:
 
     st.markdown("---")
 
-    if torch.cuda.is_available():
+    try:
+        gpu_resp = requests.get(f"{API_URL}/gpu")
+        if gpu_resp.status_code == 200:
+            gpu_data = gpu_resp.json()
+            if gpu_data.get("cuda_available"):
+                st.write(f"GPU Allocated: {gpu_data['allocated_gb']:.2f} GB")
+                st.write(f"GPU Reserved: {gpu_data['reserved_gb']:.2f} GB")
+            else:
+                st.write(f"Running on {gpu_data.get('device', 'CPU')}")
+        else:
+            st.write("FastAPI server offline/unreachable")
+    except Exception:
+        st.write("FastAPI server offline/unreachable")
 
-        allocated = (
-            torch.cuda.memory_allocated()
-            / 1024**3
-        )
-
-        reserved = (
-            torch.cuda.memory_reserved()
-            / 1024**3
-        )
-
-        st.write(
-            f"GPU Allocated: "
-            f"{allocated:.2f} GB"
-        )
-
-        st.write(
-            f"GPU Reserved: "
-            f"{reserved:.2f} GB"
-        )
-
-    else:
-
-        st.write(
-            f"Running on {DEVICE}"
-        )
-
-if st.session_state[
-    "clip4clip_loading"
-]:
+if st.session_state.get("clip4clip_loading", False):
 
     with st.spinner(
-        "Loading CLIP4Clip..."
+        "Loading CLIP4Clip on backend..."
     ):
 
-        processor, model = (
-            get_clip4clip(HF_KEY)
-        )
-
-        st.session_state[
-            "clip4clip_processor"
-        ] = processor
-
-        st.session_state[
-            "clip4clip_model"
-        ] = model
+        load_backend_model("clip4clip")
 
         st.session_state[
             "clip4clip_loading"
@@ -593,31 +535,13 @@ if st.session_state[
 
     st.rerun()
 
-if st.session_state[
-    "clap_loading"
-]:
+if st.session_state.get("clap_loading", False):
 
     with st.spinner(
-        "Loading CLAP..."
+        "Loading CLAP on backend..."
     ):
 
-        (
-            model,
-            tokenizer,
-            extractor
-        ) = get_clap(HF_KEY)
-
-        st.session_state[
-            "clap_model"
-        ] = model
-
-        st.session_state[
-            "clap_tokenizer"
-        ] = tokenizer
-
-        st.session_state[
-            "clap_extractor"
-        ] = extractor
+        load_backend_model("clap")
 
         st.session_state[
             "clap_loading"
@@ -625,31 +549,13 @@ if st.session_state[
 
     st.rerun()
 
-if st.session_state[
-    "tinyclip_loading"
-]:
+if st.session_state.get("tinyclip_loading", False):
 
     with st.spinner(
-        "Loading TinyCLIP..."
+        "Loading TinyCLIP on backend..."
     ):
 
-        (
-            pipe,
-            model,
-            processor
-        ) = get_tinyclip(HF_KEY)
-
-        st.session_state[
-            "tinyclip_pipe"
-        ] = pipe
-
-        st.session_state[
-            "tinyclip_model"
-        ] = model
-
-        st.session_state[
-            "tinyclip_processor"
-        ] = processor
+        load_backend_model("tinyclip")
 
         st.session_state[
             "tinyclip_loading"
@@ -657,26 +563,13 @@ if st.session_state[
 
     st.rerun()
 
-if st.session_state[
-    "clip_loading"
-]:
+if st.session_state.get("clip_loading", False):
 
     with st.spinner(
-        "Loading Original CLIP..."
+        "Loading Original CLIP on backend..."
     ):
 
-        (
-            model,
-            processor
-        ) = get_clip(HF_KEY)
-
-        st.session_state[
-            "clip_model"
-        ] = model
-
-        st.session_state[
-            "clip_processor"
-        ] = processor
+        load_backend_model("clip")
 
         st.session_state[
             "clip_loading"
@@ -704,11 +597,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(
 
 with tab1:
 
-    if (
-        st.session_state
-        .clip4clip_model
-        is not None
-    ):
+    if clip4clip_loaded:
 
         render_clip4clip_tab()
 
@@ -724,11 +613,7 @@ with tab1:
 
 with tab2:
 
-    if (
-        st.session_state
-        .clap_model
-        is not None
-    ):
+    if clap_loaded:
 
         render_clap_tab()
 
@@ -744,11 +629,7 @@ with tab2:
 
 with tab3:
 
-    if (
-        st.session_state
-        .tinyclip_pipe
-        is not None
-    ):
+    if tinyclip_loaded:
 
         render_tinyclip_tab()
 
@@ -764,11 +645,7 @@ with tab3:
 
 with tab4:
 
-    if (
-        st.session_state
-        .clip_model
-        is not None
-    ):
+    if clip_loaded:
 
         render_clip_tab()
 
@@ -783,12 +660,7 @@ with tab4:
 # ==========================================
 with tab5:
 
-    if (
-        st.session_state.clip4clip_model
-        and
-        st.session_state.clap_model
-        is not None
-    ):
+    if clip4clip_loaded and clap_loaded:
 
         render_av_tab()
 

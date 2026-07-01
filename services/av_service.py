@@ -77,9 +77,9 @@ def run_av_retrieval_service(
         return f"data:image/jpeg;base64,{img_str}"
 
     formatted_results = []
-    for r in result["results"][:4]:
+    for idx, r in enumerate(result["results"]):
         b64_image = ""
-        if r.get("frames") and len(r["frames"]) > 0:
+        if idx < 4 and r.get("frames") and len(r["frames"]) > 0:
             b64_image = frame_to_b64(r["frames"][0])
             
         formatted_results.append({

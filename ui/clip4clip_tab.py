@@ -1,31 +1,10 @@
-import os
-import tempfile
-
 import matplotlib.pyplot as plt
 import streamlit as st
-
-from inference.clip4clip_infer import (
-    classify_video,
-    query_video,
-    encode_frames,
-    encode_text
-)
+import requests
 
 from utils.report import (
     show_report
 )
-
-from utils.video_utils import (
-    extract_frames,
-    get_video_frame_count
-)
-
-from inference.clip4clip_similarity import (
-    compute_video_similarity
-)
-
-import torch
-import torch.nn.functional as F
 
 
 
@@ -56,17 +35,26 @@ def render_clip4clip_tab():
         st.video(uploaded)
 
     # ======================================
-    # TEMP VIDEO
+    # VIDEO METADATA (via API)
     # ======================================
 
-    with tempfile.NamedTemporaryFile(
-        suffix=".mp4",
-        delete=False
-    ) as tmp:
+    API_URL = "http://localhost:8000"
 
-        tmp.write(uploaded.read())
+    uploaded.seek(0)
+    files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+    total_video_frames = 0
+    try:
+        response = requests.post(f"{API_URL}/media/info", files=files_payload)
+        if response.status_code == 200:
+            media_data = response.json()
+            total_video_frames = media_data.get("frame_count", 0)
+        else:
+            st.error(f"Error getting video info: {response.text}")
+    except Exception as e:
+        st.error(f"Connection error: {e}")
 
-        video_path = tmp.name
+    if total_video_frames <= 0:
+        total_video_frames = 64
 
     # ======================================
     # FRAME SETTINGS
@@ -75,16 +63,6 @@ def render_clip4clip_tab():
     st.markdown(
         "### Frame Extraction Settings"
     )
-
-    total_video_frames = (
-        get_video_frame_count(
-            video_path
-        )
-    )
-
-    if total_video_frames <= 0:
-
-        total_video_frames = 64
 
     slider_max = min(
         total_video_frames,
@@ -118,13 +96,6 @@ def render_clip4clip_tab():
         {max_frames}
         """
     )
-
-    frames = extract_frames(
-        video_path,
-        max_frames=max_frames
-    )
-
-    os.unlink(video_path)
 
     st.markdown("---")
 
@@ -212,18 +183,27 @@ def render_clip4clip_tab():
                 if label.strip()
             ]
 
-            result = classify_video(
-                st.session_state
-                .clip4clip_processor,
-                st.session_state
-                .clip4clip_model,
-                frames,
-                labels
-            )
-
-            st.session_state[
-                "clip4clip_label_result"
-            ] = result
+            API_URL = "http://localhost:8000"
+            uploaded.seek(0)
+            files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+            data = {"labels_str": ",".join(labels), "max_frames": max_frames}
+            try:
+                response = requests.post(f"{API_URL}/clip4clip/label", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    result = {
+                        "time_taken": api_result["time_taken"],
+                        "results": api_result["results"],
+                        "input_details": {
+                            "Number of Frames Used for Inference": max_frames,
+                            "Number of Labels": len(labels)
+                        }
+                    }
+                    st.session_state["clip4clip_label_result"] = result
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
         result = st.session_state.get(
             "clip4clip_label_result"
@@ -271,25 +251,20 @@ def render_clip4clip_tab():
             "Retrieve Frames"
         ):
 
-            result = query_video(
-                st.session_state
-                .clip4clip_processor,
-
-                st.session_state
-                .clip4clip_model,
-
-                frames,
-
-                query
-            )
-
-            st.session_state[
-                "clip4clip_query_result"
-            ] = result
-
-            st.session_state[
-                "clip4clip_top_k"
-            ] = top_k
+            API_URL = "http://localhost:8000"
+            uploaded.seek(0)
+            files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+            data = {"query": query, "max_frames": max_frames}
+            try:
+                response = requests.post(f"{API_URL}/clip4clip/search", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    st.session_state["clip4clip_query_result"] = api_result
+                    st.session_state["clip4clip_top_k"] = top_k
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
         result = st.session_state.get(
             "clip4clip_query_result"
@@ -303,16 +278,8 @@ def render_clip4clip_tab():
                 f"### Query: `{result['query']}`"
             )
 
-            ranked_frames = result[
-                "frame_scores"
-            ]
-
-            top_frames = ranked_frames[
-                :st.session_state.get(
-                    "clip4clip_top_k",
-                    4
-                )
-            ]
+            # Results returned from FastAPI contains top matches with base64 images
+            top_frames = result["results"][:st.session_state.get("clip4clip_top_k", 4)]
 
             num_columns = 2
 
@@ -335,12 +302,12 @@ def render_clip4clip_tab():
                     current_row
                 ):
 
-                    frame_idx, score = (
-                        frame_data
-                    )
+                    frame_idx = frame_data["frame_index"]
+                    score = frame_data["score"]
+                    b64_image = frame_data["image"]
 
                     columns[idx].image(
-                        frames[frame_idx],
+                        b64_image,
                         caption=(
                             f"Frame {frame_idx}\n"
                             f"Score: {score:.4f}"
@@ -351,6 +318,12 @@ def render_clip4clip_tab():
             st.markdown(
                 "### Frame Retrieval Scores"
             )
+
+            # Reconstruct ranked_frames from all_scores for the graph plotting
+            ranked_frames = [
+                (item["frame_index"], item["score"])
+                for item in result.get("all_scores", [])
+            ]
 
             frame_indices = [
                 frame_idx
@@ -475,21 +448,23 @@ def render_clip4clip_tab():
                 if prompt.strip()
             ]
 
-            results = compute_video_similarity(
-                st.session_state
-                .clip4clip_processor,
-
-                st.session_state
-                .clip4clip_model,
-
-                frames,
-
-                prompts
-            )
-
-            st.session_state[
-                "clip4clip_similarity_result"
-            ] = results
+            API_URL = "http://localhost:8000"
+            uploaded.seek(0)
+            files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+            data = {"prompts_str": ",".join(prompts), "max_frames": max_frames}
+            try:
+                response = requests.post(f"{API_URL}/clip4clip/similarity", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    results = [
+                        (item["prompt"], item["score"])
+                        for item in api_result["results"]
+                    ]
+                    st.session_state["clip4clip_similarity_result"] = results
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
         results = st.session_state.get(
             "clip4clip_similarity_result"

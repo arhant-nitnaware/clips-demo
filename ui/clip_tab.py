@@ -1,15 +1,8 @@
 import matplotlib.pyplot as plt
 import streamlit as st
+import requests
 
 from PIL import Image
-
-from inference.clip_infer import (
-    run_clip
-)
-
-from inference.clip_retrieval import (
-    retrieve_images
-)
 
 from utils.report import (
     show_report
@@ -84,21 +77,26 @@ def render_clip_tab():
                 if label.strip()
             ]
 
-            result = run_clip(
-                st.session_state
-                .clip_model,
-
-                st.session_state
-                .clip_processor,
-
-                image,
-
-                labels
-            )
-
-            st.session_state[
-                "clip_label_result"
-            ] = result
+            API_URL = "http://localhost:8000"
+            uploaded.seek(0)
+            files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+            data = {"labels_str": ",".join(labels)}
+            try:
+                response = requests.post(f"{API_URL}/clip/label", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    result = {
+                        "time_taken": api_result["time_taken"],
+                        "results": api_result["results"],
+                        "input_details": {
+                            "Image Size": image.size
+                        }
+                    }
+                    st.session_state["clip_label_result"] = result
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
         result = st.session_state.get(
             "clip_label_result"
@@ -162,25 +160,23 @@ def render_clip_tab():
             "Retrieve Images"
         ):
 
-            result = retrieve_images(
-                st.session_state
-                .clip_model,
-
-                st.session_state
-                .clip_processor,
-
-                query,
-
-                uploaded_images
-            )
-
-            st.session_state[
-                "clip_retrieval_result"
-            ] = result
-
-            st.session_state[
-                "clip_top_k"
-            ] = top_k
+            API_URL = "http://localhost:8000"
+            files = []
+            for idx, uploaded in enumerate(uploaded_images):
+                uploaded.seek(0)
+                files.append(("files", (uploaded.name, uploaded.getvalue(), uploaded.type)))
+            
+            data = {"query": query}
+            try:
+                response = requests.post(f"{API_URL}/clip/search", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    st.session_state["clip_retrieval_result"] = api_result
+                    st.session_state["clip_top_k"] = top_k
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
         result = st.session_state.get(
             "clip_retrieval_result"
@@ -195,9 +191,17 @@ def render_clip_tab():
                 f"`{result['query']}`"
             )
 
-            ranked_results = result[
-                "results"
-            ]
+            # Map the results to (image_name, pil_image, score)
+            image_lookup = {uploaded.name: uploaded for uploaded in uploaded_images}
+            ranked_results = []
+            for r in result["results"]:
+                image_name = r["image_path"]
+                score = r["score"]
+                uploaded_file = image_lookup.get(image_name)
+                if uploaded_file:
+                    uploaded_file.seek(0)
+                    img = Image.open(uploaded_file).convert("RGB")
+                    ranked_results.append((image_name, img, score))
 
             top_results = ranked_results[
                 :st.session_state.get(
