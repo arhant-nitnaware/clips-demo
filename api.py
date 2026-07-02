@@ -23,7 +23,7 @@ from services.clip_service import (
     run_tinyclip_labeling
 )
 from services.clap_service import run_clap_retrieval, run_clap_labeling
-from services.av_service import run_av_retrieval_service
+from services.av_service import run_av_retrieval_service, run_av_batch_retrieval_service
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -535,6 +535,7 @@ async def av_search(
     visual_weight: float = Form(0.5),
     audio_weight: float = Form(0.5),
     segment_seconds: float = Form(5.0),
+    max_frames: int = Form(8),
     top_k: int = Form(4)
 ):
     """Run fused Audio+Video search on segments of a video file using CLIP4Clip and CLAP."""
@@ -557,12 +558,71 @@ async def av_search(
             visual_weight=visual_weight,
             audio_weight=audio_weight,
             segment_seconds=segment_seconds,
+            max_frames=max_frames,
             top_k=top_k
         )
     except Exception as e:
         raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
+
+@app.post("/av/batch_search")
+async def av_batch_search(
+    files: Optional[List[UploadFile]] = File(None),
+    video_paths: Optional[str] = Form(None),
+    query: str = Form(...),
+    visual_weight: float = Form(0.5),
+    audio_weight: float = Form(0.5),
+    segment_seconds: float = Form(5.0),
+    max_frames: int = Form(8),
+    top_k: int = Form(4)
+):
+    """Run fused Audio+Video search on segments of multiple video files using CLIP4Clip and CLAP."""
+    temp_paths = []
+    try:
+        paths_to_use = []
+        if files:
+            for f in files:
+                if f.filename:
+                    t_path = save_uploaded_file(f)
+                    temp_paths.append(t_path)
+                    paths_to_use.append((f.filename, t_path))
+        elif video_paths:
+            import json
+            try:
+                decoded_paths = json.loads(video_paths)
+                if isinstance(decoded_paths, list):
+                    for p in decoded_paths:
+                        paths_to_use.append((os.path.basename(p), p))
+                else:
+                    paths_to_use.append((os.path.basename(video_paths), video_paths))
+            except json.JSONDecodeError:
+                for p in video_paths.split(","):
+                    p = p.strip()
+                    if p:
+                        paths_to_use.append((os.path.basename(p), p))
+        
+        if not paths_to_use:
+            raise HTTPException(status_code=400, detail="Must provide uploaded 'files' or 'video_paths'.")
+            
+        for name, p in paths_to_use:
+            if not os.path.exists(p):
+                raise HTTPException(status_code=400, detail=f"Video file not found: {p}")
+                
+        return run_av_batch_retrieval_service(
+            query=query,
+            videos=paths_to_use,
+            visual_weight=visual_weight,
+            audio_weight=audio_weight,
+            segment_seconds=segment_seconds,
+            max_frames=max_frames,
+            top_k=top_k
+        )
+    except Exception as e:
+        raise handle_exception(e)
+    finally:
+        for p in temp_paths:
+            cleanup_file(p)
 
 if __name__ == "__main__":
     import uvicorn

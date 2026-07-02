@@ -261,6 +261,9 @@ def run_av_retrieval(
                 "end_time":
                     end_t,
 
+                "video_name":
+                    segment.get("video_name", ""),
+
                 "visual_score":
                     visual_similarity,
 

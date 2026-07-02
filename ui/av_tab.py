@@ -1,3 +1,4 @@
+import os
 import matplotlib.pyplot as plt
 import streamlit as st
 import requests
@@ -10,107 +11,157 @@ def render_av_tab():
         "Multimodal Temporal Retrieval"
     )
 
-    uploaded = st.file_uploader(
-        "Upload Video",
-        type=["mp4", "avi", "mov"],
-        key="av_upload"
+    search_mode = st.radio(
+        "Search Mode",
+        options=["Just One Video", "Batch of Videos"],
+        index=0,
+        horizontal=True,
+        key="av_search_mode"
     )
 
-    if uploaded is None:
-        return
+    # Clean up results if mode changed
+    if "prev_av_search_mode" not in st.session_state:
+        st.session_state["prev_av_search_mode"] = search_mode
+    elif st.session_state["prev_av_search_mode"] != search_mode:
+        st.session_state["av_result"] = None
+        st.session_state["prev_av_search_mode"] = search_mode
 
-    # =====================================
-    # VIDEO DISPLAY
-    # =====================================
-
-    video_col1, video_col2, video_col3 = (
-        st.columns([1, 3, 1])
-    )
-
-    with video_col2:
-
-        st.video(uploaded)
-
-    # =====================================
-    # VIDEO METADATA (via API)
-    # =====================================
-
-    API_URL = "http://localhost:8000"
-
-    uploaded.seek(0)
-    files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
-    
-    duration = 0.0
-    fps = 0.0
-    frame_count = 0
-    resolution = "N/A"
-    sample_rate = 0
-    file_size_mb = 0.0
-
-    try:
-        response = requests.post(f"{API_URL}/media/info", files=files_payload)
-        if response.status_code == 200:
-            media_data = response.json()
-            duration = media_data.get("duration", 0.0)
-            fps = media_data.get("fps", 0.0)
-            frame_count = media_data.get("frame_count", 0)
-            resolution = media_data.get("resolution", "N/A")
-            sample_rate = media_data.get("sample_rate", 0)
-            file_size_mb = media_data.get("file_size_mb", 0.0)
-        else:
-            st.error(f"Error getting video info: {response.text}")
-    except Exception as e:
-        st.error(f"Connection error: {e}")
-
-    # =====================================
-    # VIDEO INFORMATION
-    # =====================================
-
-    st.markdown("---")
-
-    st.subheader(
-        "Video Information"
-    )
-
-    info_col1, info_col2, info_col3 = (
-        st.columns(3)
-    )
-
-    with info_col1:
-
-        st.metric(
-            "Duration",
-            f"{duration:.2f}s"
+    if search_mode == "Just One Video":
+        uploaded = st.file_uploader(
+            "Upload Video",
+            type=["mp4", "avi", "mov"],
+            key="av_upload"
         )
 
-        st.metric(
-            "FPS",
-            f"{fps:.2f}"
+        if uploaded is None:
+            return
+
+        # =====================================
+        # VIDEO DISPLAY
+        # =====================================
+
+        video_col1, video_col2, video_col3 = (
+            st.columns([1, 3, 1])
         )
 
-    with info_col2:
+        with video_col2:
 
-        st.metric(
-            "Total Frames",
-            frame_count
+            st.video(uploaded)
+
+        # =====================================
+        # VIDEO METADATA (via API)
+        # =====================================
+
+        API_URL = "http://localhost:8000"
+
+        uploaded.seek(0)
+        files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+        
+        duration = 0.0
+        fps = 0.0
+        frame_count = 0
+        resolution = "N/A"
+        sample_rate = 0
+        file_size_mb = 0.0
+
+        try:
+            response = requests.post(f"{API_URL}/media/info", files=files_payload)
+            if response.status_code == 200:
+                media_data = response.json()
+                duration = media_data.get("duration", 0.0)
+                fps = media_data.get("fps", 0.0)
+                frame_count = media_data.get("frame_count", 0)
+                resolution = media_data.get("resolution", "N/A")
+                sample_rate = media_data.get("sample_rate", 0)
+                file_size_mb = media_data.get("file_size_mb", 0.0)
+            else:
+                st.error(f"Error getting video info: {response.text}")
+        except Exception as e:
+            st.error(f"Connection error: {e}")
+
+        # =====================================
+        # VIDEO INFORMATION
+        # =====================================
+
+        st.markdown("---")
+
+        st.subheader(
+            "Video Information"
         )
 
-        st.metric(
-            "Resolution",
-            resolution
+        info_col1, info_col2, info_col3 = (
+            st.columns(3)
         )
 
-    with info_col3:
+        with info_col1:
 
-        st.metric(
-            "Audio Sample Rate",
-            sample_rate
+            st.metric(
+                "Duration",
+                f"{duration:.2f}s"
+            )
+
+            st.metric(
+                "FPS",
+                f"{fps:.2f}"
+            )
+
+        with info_col2:
+
+            st.metric(
+                "Total Frames",
+                frame_count
+            )
+
+            st.metric(
+                "Resolution",
+                resolution
+            )
+
+        with info_col3:
+
+            st.metric(
+                "Audio Sample Rate",
+                sample_rate
+            )
+
+            st.metric(
+                "File Size",
+                f"{file_size_mb:.2f} MB"
+            )
+
+    else:
+        uploaded_files = st.file_uploader(
+            "Upload Videos",
+            type=["mp4", "avi", "mov"],
+            accept_multiple_files=True,
+            key="av_upload_batch"
         )
 
-        st.metric(
-            "File Size",
-            f"{file_size_mb:.2f} MB"
+        if not uploaded_files:
+            return
+
+        st.write(f"Uploaded {len(uploaded_files)} video(s).")
+        file_details = []
+        for idx, f in enumerate(uploaded_files):
+            file_details.append({
+                "Filename": f.name,
+                "Size (MB)": f"{f.size / (1024 * 1024):.2f}"
+            })
+        st.table(file_details)
+
+        st.subheader("Play Uploaded Video")
+        selected_video_name = st.selectbox(
+            "Select video to play",
+            options=[f.name for f in uploaded_files],
+            key="av_selected_play_video"
         )
+        selected_file = next(f for f in uploaded_files if f.name == selected_video_name)
+        
+        video_col1, video_col2, video_col3 = (
+            st.columns([1, 3, 1])
+        )
+        with video_col2:
+            st.video(selected_file)
 
     st.markdown("---")
 
@@ -202,26 +253,53 @@ def render_av_tab():
     if st.button(
         "Run Temporal Retrieval"
     ):
-
         API_URL = "http://localhost:8000"
-        uploaded.seek(0)
-        files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
-        data = {
-            "query": query,
-            "visual_weight": float(visual_weight),
-            "audio_weight": float(audio_weight),
-            "segment_seconds": float(segment_seconds),
-            "top_k": int(top_k)
-        }
-        try:
-            response = requests.post(f"{API_URL}/av/search", files=files, data=data)
-            if response.status_code == 200:
-                api_result = response.json()
-                st.session_state["av_result"] = api_result
-            else:
-                st.error(f"Error from API: {response.text}")
-        except Exception as e:
-            st.error(f"Connection error: {e}")
+        
+        if search_mode == "Just One Video":
+            uploaded.seek(0)
+            files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+            data = {
+                "query": query,
+                "visual_weight": float(visual_weight),
+                "audio_weight": float(audio_weight),
+                "segment_seconds": float(segment_seconds),
+                "max_frames": int(max_frames),
+                "top_k": int(top_k)
+            }
+            try:
+                response = requests.post(f"{API_URL}/av/search", files=files, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    st.session_state["av_result"] = api_result
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
+        else:
+            files_payload = []
+            for f in uploaded_files:
+                f.seek(0)
+                files_payload.append(
+                    ("files", (f.name, f.getvalue(), f.type))
+                )
+            data = {
+                "query": query,
+                "visual_weight": float(visual_weight),
+                "audio_weight": float(audio_weight),
+                "segment_seconds": float(segment_seconds),
+                "max_frames": int(max_frames),
+                "top_k": int(top_k)
+            }
+            try:
+                with st.spinner("Processing batch retrieval..."):
+                    response = requests.post(f"{API_URL}/av/batch_search", files=files_payload, data=data)
+                if response.status_code == 200:
+                    api_result = response.json()
+                    st.session_state["av_result"] = api_result
+                else:
+                    st.error(f"Error from API: {response.text}")
+            except Exception as e:
+                st.error(f"Connection error: {e}")
 
     # =====================================
     # RESULT HANDLING
@@ -255,23 +333,38 @@ def render_av_tab():
             "results"
         ][:int(top_k)]
 
-        timeline_results = sorted(
-            result["results"],
-            key=lambda x: x["start_time"]
-        )
-
-        timeline_x = [
-            (
-                f"{segment['start_time']:.0f}-"
-                f"{segment['end_time']:.0f}s"
+        if search_mode == "Just One Video":
+            timeline_results = sorted(
+                result["results"],
+                key=lambda x: x["start_time"]
             )
-            for segment in timeline_results
-        ]
 
-        timeline_y = [
-            segment["fused_score"]
-            for segment in timeline_results
-        ]
+            timeline_x = [
+                (
+                    f"{segment['start_time']:.0f}-"
+                    f"{segment['end_time']:.0f}s"
+                )
+                for segment in timeline_results
+            ]
+
+            timeline_y = [
+                segment["fused_score"]
+                for segment in timeline_results
+            ]
+        else:
+            timeline_results = top_results
+            timeline_x = [
+                (
+                    f"{segment.get('video_name', '')[:15]}...\n"
+                    f"{segment['start_time']:.0f}-{segment['end_time']:.0f}s"
+                )
+                for segment in timeline_results
+            ]
+
+            timeline_y = [
+                segment["fused_score"]
+                for segment in timeline_results
+            ]
 
         for idx, segment in enumerate(
             top_results
@@ -297,13 +390,22 @@ def render_av_tab():
                 "audio_score"
             ]
 
-            st.markdown(
-                f"""
-                ### Segment
-                {start_t:.1f}s
-                → {end_t:.1f}s
-                """
-            )
+            video_name = segment.get("video_name", "")
+            if search_mode == "Batch of Videos" and video_name:
+                st.markdown(
+                    f"""
+                    ### Video: {video_name}
+                    **Segment:** {start_t:.1f}s → {end_t:.1f}s
+                    """
+                )
+            else:
+                st.markdown(
+                    f"""
+                    ### Segment
+                    {start_t:.1f}s
+                    → {end_t:.1f}s
+                    """
+                )
 
             score_col1, score_col2, score_col3 = (
                 st.columns(3)
@@ -341,18 +443,8 @@ def render_av_tab():
                     pil_img = Image.open(io.BytesIO(image_bytes))
                 except Exception:
                     pil_img = b64_image
-                    image_bytes = None
 
-                st.image(pil_img, use_container_width=True)
-
-                if image_bytes is not None:
-                    st.download_button(
-                        label=f"📥 Download Representative Frame ({start_t:.1f}s - {end_t:.1f}s)",
-                        data=image_bytes,
-                        file_name=f"segment_{start_t:.1f}_{end_t:.1f}.jpg",
-                        mime="image/jpeg",
-                        key=f"dl_av_{idx}"
-                    )
+                st.image(pil_img, width=640)
 
             st.markdown("---")
 
@@ -374,42 +466,50 @@ def render_av_tab():
         )
 
         ax.set_xlabel(
-            "Video Segment"
+            "Video Segment" if search_mode == "Just One Video" else "Segment Source"
         )
 
         ax.set_title(
-            "Temporal Retrieval Scores"
+            "Temporal Retrieval Scores" if search_mode == "Just One Video" else f"Top {len(timeline_results)} Matching Segments"
         )
 
         # ======================================
         # SHOW ONLY MAJOR TICKS
         # ======================================
 
-        step = max(
-            1,
-            len(timeline_x) // 10
-        )
-
-        tick_positions = list(
-            range(
-                0,
-                len(timeline_x),
-                step
+        if search_mode == "Just One Video":
+            step = max(
+                1,
+                len(timeline_x) // 10
             )
-        )
 
-        ax.set_xticks(
-            tick_positions
-        )
+            tick_positions = list(
+                range(
+                    0,
+                    len(timeline_x),
+                    step
+                )
+            )
 
-        ax.set_xticklabels(
-            [
-                timeline_x[i]
-                for i in tick_positions
-            ],
-            rotation=45,
-            ha="right"
-        )
+            ax.set_xticks(
+                tick_positions
+            )
+
+            ax.set_xticklabels(
+                [
+                    timeline_x[i]
+                    for i in tick_positions
+                ],
+                rotation=45,
+                ha="right"
+            )
+        else:
+            ax.set_xticks(range(len(timeline_x)))
+            ax.set_xticklabels(
+                timeline_x,
+                rotation=45,
+                ha="right"
+            )
 
         ax.minorticks_off()
 
