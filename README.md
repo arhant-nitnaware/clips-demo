@@ -242,23 +242,6 @@ Run zero-shot video classification based on visual temporal features.
   - `max_frames`: `int` (Total frames to sample from the video)
 * **Response:** same format as `/clip/label`.
 
-#### `POST /clip4clip/similarity`
-Compute temporal similarity curves between a video and multiple text prompts.
-* **Request Params (`multipart/form-data`):**
-  - `file`: `UploadFile`
-  - `video_path`: `str`
-  - `prompts_str`: `str` (Comma-separated prompts)
-  - `max_frames`: `int`
-* **Response:**
-  ```json
-  {
-    "results": [
-      { "prompt": "a car driving left to right", "score": 0.3541 },
-      { "prompt": "a nature scene", "score": 0.0412 }
-    ]
-  }
-  ```
-
 #### `POST /clip4clip/batch_search`
 Compares video frames across multiple video files to a text query, and returns the top matching frames globally.
 * **Request Params (`multipart/form-data`):**

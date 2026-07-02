@@ -18,7 +18,6 @@ from services.clip_service import (
     run_clip_labeling,
     run_clip4clip_retrieval,
     run_clip4clip_labeling,
-    run_clip4clip_similarity,
     run_clip4clip_batch_retrieval,
     run_tinyclip_retrieval,
     run_tinyclip_labeling
@@ -480,38 +479,6 @@ async def clip4clip_label(
             raise HTTPException(status_code=400, detail=f"Video file not found: {path_to_use}")
             
         return run_clip4clip_labeling(path_to_use, parsed_labels, max_frames)
-    except Exception as e:
-        raise handle_exception(e)
-    finally:
-        cleanup_file(temp_path)
-
-@app.post("/clip4clip/similarity")
-async def clip4clip_similarity(
-    file: Optional[UploadFile] = File(None),
-    video_path: Optional[str] = Form(None),
-    prompts: Optional[List[str]] = Form(None),
-    prompts_str: Optional[str] = Form(None),
-    max_frames: int = Form(12)
-):
-    """Compute temporal similarity scores between a video and multiple text prompts."""
-    temp_path = None
-    try:
-        parsed_prompts = parse_labels(prompts_str, prompts)
-        if not parsed_prompts:
-            raise HTTPException(status_code=400, detail="Must provide 'prompts' or 'prompts_str'.")
-            
-        if file and file.filename:
-            temp_path = save_uploaded_file(file)
-            path_to_use = temp_path
-        elif video_path:
-            path_to_use = video_path
-        else:
-            raise HTTPException(status_code=400, detail="Must provide uploaded 'file' or 'video_path'.")
-            
-        if not os.path.exists(path_to_use):
-            raise HTTPException(status_code=400, detail=f"Video file not found: {path_to_use}")
-            
-        return run_clip4clip_similarity(path_to_use, parsed_prompts, max_frames)
     except Exception as e:
         raise handle_exception(e)
     finally:

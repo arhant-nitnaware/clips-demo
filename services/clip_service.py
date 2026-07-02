@@ -4,7 +4,6 @@ from models import model_manager
 from inference.clip_retrieval import retrieve_images
 from inference.clip_infer import run_clip
 from inference.clip4clip_infer import query_video, classify_video
-from inference.clip4clip_similarity import compute_video_similarity
 from inference.tinyclip_retrieval import retrieve_tinyclip_images
 from inference.tinyclip_infer import run_tinyclip
 from utils.video_utils import extract_frames
@@ -117,25 +116,6 @@ def run_clip4clip_labeling(video_path: str, labels: list[str], max_frames: int =
     ]
     return {
         "time_taken": float(result["time_taken"]),
-        "results": formatted_results
-    }
-
-def run_clip4clip_similarity(video_path: str, prompts: list[str], max_frames: int = 12) -> dict:
-    """Run CLIP4Clip temporal video similarity comparisons."""
-    processor, model = model_manager.get_clip4clip()
-    frames = extract_frames(video_path, max_frames=max_frames)
-    if not frames:
-        raise ValueError(f"Could not extract frames from video at {video_path}")
-    result = compute_video_similarity(processor, model, frames, prompts)
-    
-    formatted_results = [
-        {
-            "prompt": str(r[0]),
-            "score": float(r[1])
-        }
-        for r in result
-    ]
-    return {
         "results": formatted_results
     }
 
