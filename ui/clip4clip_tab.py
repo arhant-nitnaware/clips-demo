@@ -14,100 +14,152 @@ def render_clip4clip_tab():
 
     st.header("CLIP4Clip")
 
-    uploaded = st.file_uploader(
-        "Upload Video",
-        type=["mp4", "avi", "mov"]
+    search_mode = st.radio(
+        "Search Mode",
+        options=["Just One Video", "Batch of Videos"],
+        index=0,
+        horizontal=True,
+        key="clip4clip_search_mode"
     )
 
-    if uploaded is None:
-        return
+    # Clean up results if mode changed
+    if "prev_clip4clip_search_mode" not in st.session_state:
+        st.session_state["prev_clip4clip_search_mode"] = search_mode
+    elif st.session_state["prev_clip4clip_search_mode"] != search_mode:
+        st.session_state["clip4clip_label_result"] = None
+        st.session_state["clip4clip_query_result"] = None
+        st.session_state["prev_clip4clip_search_mode"] = search_mode
 
-    # ======================================
-    # VIDEO DISPLAY
-    # ======================================
-
-    video_col1, video_col2, video_col3 = (
-        st.columns([1, 3, 1])
-    )
-
-    with video_col2:
-
-        st.video(uploaded)
-
-    # ======================================
-    # VIDEO METADATA (via API)
-    # ======================================
-
-    API_URL = "http://localhost:8000"
-
-    uploaded.seek(0)
-    files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
-    total_video_frames = 0
-    duration = 0.0
-    fps = 0.0
-    resolution = "N/A"
-    file_size_mb = 0.0
-    try:
-        response = requests.post(f"{API_URL}/media/info", files=files_payload)
-        if response.status_code == 200:
-            media_data = response.json()
-            total_video_frames = media_data.get("frame_count", 0)
-            duration = media_data.get("duration", 0.0)
-            fps = media_data.get("fps", 0.0)
-            resolution = media_data.get("resolution", "N/A")
-            file_size_mb = media_data.get("file_size_mb", 0.0)
-        else:
-            st.error(f"Error getting video info: {response.text}")
-    except Exception as e:
-        st.error(f"Connection error: {e}")
-
-    if total_video_frames <= 0:
-        total_video_frames = 64
-
-    # ======================================
-    # VIDEO INFORMATION
-    # ======================================
-
-    st.markdown("---")
-
-    st.subheader(
-        "Video Information"
-    )
-
-    info_col1, info_col2, info_col3 = (
-        st.columns(3)
-    )
-
-    with info_col1:
-
-        st.metric(
-            "Duration",
-            f"{duration:.2f}s"
+    if search_mode == "Just One Video":
+        uploaded = st.file_uploader(
+            "Upload Video",
+            type=["mp4", "avi", "mov"],
+            key="clip4clip_upload"
         )
 
-        st.metric(
-            "FPS",
-            f"{fps:.2f}"
+        if uploaded is None:
+            return
+
+        # ======================================
+        # VIDEO DISPLAY
+        # ======================================
+
+        video_col1, video_col2, video_col3 = (
+            st.columns([1, 3, 1])
         )
 
-    with info_col2:
+        with video_col2:
 
-        st.metric(
-            "Total Frames",
-            total_video_frames
+            st.video(uploaded)
+
+        # ======================================
+        # VIDEO METADATA (via API)
+        # ======================================
+
+        API_URL = "http://localhost:8000"
+
+        uploaded.seek(0)
+        files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+        total_video_frames = 0
+        duration = 0.0
+        fps = 0.0
+        resolution = "N/A"
+        file_size_mb = 0.0
+        try:
+            response = requests.post(f"{API_URL}/media/info", files=files_payload)
+            if response.status_code == 200:
+                media_data = response.json()
+                total_video_frames = media_data.get("frame_count", 0)
+                duration = media_data.get("duration", 0.0)
+                fps = media_data.get("fps", 0.0)
+                resolution = media_data.get("resolution", "N/A")
+                file_size_mb = media_data.get("file_size_mb", 0.0)
+            else:
+                st.error(f"Error getting video info: {response.text}")
+        except Exception as e:
+            st.error(f"Connection error: {e}")
+
+        if total_video_frames <= 0:
+            total_video_frames = 64
+
+        # ======================================
+        # VIDEO INFORMATION
+        # ======================================
+
+        st.markdown("---")
+
+        st.subheader(
+            "Video Information"
         )
 
-        st.metric(
-            "Resolution",
-            resolution
+        info_col1, info_col2, info_col3 = (
+            st.columns(3)
         )
 
-    with info_col3:
+        with info_col1:
 
-        st.metric(
-            "File Size",
-            f"{file_size_mb:.2f} MB"
+            st.metric(
+                "Duration",
+                f"{duration:.2f}s"
+            )
+
+            st.metric(
+                "FPS",
+                f"{fps:.2f}"
+            )
+
+        with info_col2:
+
+            st.metric(
+                "Total Frames",
+                total_video_frames
+            )
+
+            st.metric(
+                "Resolution",
+                resolution
+            )
+
+        with info_col3:
+
+            st.metric(
+                "File Size",
+                f"{file_size_mb:.2f} MB"
+            )
+
+    else:
+        uploaded_files = st.file_uploader(
+            "Upload Videos",
+            type=["mp4", "avi", "mov"],
+            accept_multiple_files=True,
+            key="clip4clip_upload_batch"
         )
+
+        if not uploaded_files:
+            return
+
+        st.write(f"Uploaded {len(uploaded_files)} video(s).")
+        file_details = []
+        for idx, f in enumerate(uploaded_files):
+            file_details.append({
+                "Filename": f.name,
+                "Size (MB)": f"{f.size / (1024 * 1024):.2f}"
+            })
+        st.table(file_details)
+
+        st.subheader("Play Uploaded Video")
+        selected_video_name = st.selectbox(
+            "Select video to play",
+            options=[f.name for f in uploaded_files],
+            key="clip4clip_selected_play_video"
+        )
+        selected_file = next(f for f in uploaded_files if f.name == selected_video_name)
+        
+        video_col1, video_col2, video_col3 = (
+            st.columns([1, 3, 1])
+        )
+        with video_col2:
+            st.video(selected_file)
 
     st.markdown("---")
 
@@ -119,38 +171,58 @@ def render_clip4clip_tab():
         "### Frame Extraction Settings"
     )
 
-    slider_max = min(
-        total_video_frames,
-        128
-    )
-
-    default_frames = min(
-        12,
-        slider_max
-    )
-
-    max_frames = st.slider(
-        "Number of Frames",
-        min_value=2,
-        max_value=total_video_frames,
-        value=default_frames,
-        step=1,
-        help=(
-            "Higher frame counts improve "
-            "temporal representation but "
-            "increase inference time."
+    if search_mode == "Just One Video":
+        slider_max = min(
+            total_video_frames,
+            128
         )
-    )
 
-    st.caption(
-        f"""
-        Total video frames detected:
-        {total_video_frames}
+        default_frames = min(
+            12,
+            slider_max
+        )
 
-        Selected frames for inference:
-        {max_frames}
-        """
-    )
+        max_frames = st.slider(
+            "Number of Frames",
+            min_value=2,
+            max_value=total_video_frames,
+            value=default_frames,
+            step=1,
+            help=(
+                "Higher frame counts improve "
+                "temporal representation but "
+                "increase inference time."
+            )
+        )
+
+        st.caption(
+            f"""
+            Total video frames detected:
+            {total_video_frames}
+
+            Selected frames for inference:
+            {max_frames}
+            """
+        )
+    else:
+        max_frames = st.slider(
+            "Number of Frames (per Video)",
+            min_value=2,
+            max_value=64,
+            value=12,
+            step=1,
+            help=(
+                "Number of frames to extract from each video "
+                "in the batch for search inference."
+            )
+        )
+
+        st.caption(
+            f"""
+            Selected frames per video for inference:
+            {max_frames}
+            """
+        )
 
     st.markdown("---")
 
@@ -158,16 +230,20 @@ def render_clip4clip_tab():
     # TASK MODES
     # ======================================
 
-    mode = st.radio(
-        "Task",
-        [
-            "Video Labeling",
-            "Frame Retrieval",
-            #"Video Similarity"
-        ],
-        horizontal=True,
-        key="clip4clip_mode"
-    )
+    if search_mode == "Just One Video":
+        mode = st.radio(
+            "Task",
+            [
+                "Video Labeling",
+                "Frame Retrieval",
+                #"Video Similarity"
+            ],
+            horizontal=True,
+            key="clip4clip_mode"
+        )
+    else:
+        mode = "Frame Retrieval"
+        st.markdown("**Task:** Frame Retrieval (Searching among multiple videos)")
 
     # ======================================
     # MODE TRACKING
@@ -287,7 +363,8 @@ def render_clip4clip_tab():
 
         query = st.text_input(
             "Query",
-            value="a yellow race car"
+            value="a yellow race car",
+            key="clip4clip_query"
         )
         
         col1, _ = st.columns([1, 4])
@@ -299,27 +376,47 @@ def render_clip4clip_tab():
                 min_value=1,
                 max_value=20,
                 value=4,
-                step=1
+                step=1,
+                key="clip4clip_top_k_input"
                 )
 
         if st.button(
             "Retrieve Frames"
         ):
-
             API_URL = "http://localhost:8000"
-            uploaded.seek(0)
-            files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
-            data = {"query": query, "max_frames": max_frames, "top_k": int(top_k)}
-            try:
-                response = requests.post(f"{API_URL}/clip4clip/search", files=files, data=data)
-                if response.status_code == 200:
-                    api_result = response.json()
-                    st.session_state["clip4clip_query_result"] = api_result
-                    st.session_state["clip4clip_top_k"] = top_k
-                else:
-                    st.error(f"Error from API: {response.text}")
-            except Exception as e:
-                st.error(f"Connection error: {e}")
+            if search_mode == "Just One Video":
+                uploaded.seek(0)
+                files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+                data = {"query": query, "max_frames": max_frames, "top_k": int(top_k)}
+                try:
+                    response = requests.post(f"{API_URL}/clip4clip/search", files=files, data=data)
+                    if response.status_code == 200:
+                        api_result = response.json()
+                        st.session_state["clip4clip_query_result"] = api_result
+                        st.session_state["clip4clip_top_k"] = top_k
+                    else:
+                        st.error(f"Error from API: {response.text}")
+                except Exception as e:
+                    st.error(f"Connection error: {e}")
+            else:
+                files_payload = []
+                for f in uploaded_files:
+                    f.seek(0)
+                    files_payload.append(
+                        ("files", (f.name, f.getvalue(), f.type))
+                    )
+                data = {"query": query, "max_frames": max_frames, "top_k": int(top_k)}
+                try:
+                    with st.spinner("Processing batch retrieval..."):
+                        response = requests.post(f"{API_URL}/clip4clip/batch_search", files=files_payload, data=data)
+                    if response.status_code == 200:
+                        api_result = response.json()
+                        st.session_state["clip4clip_query_result"] = api_result
+                        st.session_state["clip4clip_top_k"] = top_k
+                    else:
+                        st.error(f"Error from API: {response.text}")
+                except Exception as e:
+                    st.error(f"Connection error: {e}")
 
         result = st.session_state.get(
             "clip4clip_query_result"
@@ -370,70 +467,103 @@ def render_clip4clip_tab():
                         pil_img = Image.open(io.BytesIO(image_bytes))
                     except Exception:
                         pil_img = b64_image
-                        image_bytes = None
+
+                    video_name = frame_data.get("video_name", "")
+                    timestamp = frame_data.get("timestamp", None)
+                    
+                    if search_mode == "Batch of Videos" and video_name:
+                        caption_text = (
+                            f"Video: {video_name}\n"
+                            f"Frame: {frame_idx}\n"
+                            f"Time: {timestamp:.2f}s\n"
+                            f"Score: {score:.4f}"
+                        )
+                    else:
+                        caption_text = (
+                            f"Frame: {frame_idx}\n"
+                            f"Score: {score:.4f}"
+                        )
 
                     columns[idx].image(
                         pil_img,
-                        caption=(
-                            f"Frame {frame_idx}\n"
-                            f"Score: {score:.4f}"
-                        ),
-                        use_container_width=True
+                        caption=caption_text,
+                        width=280
                     )
-
-                    if image_bytes is not None:
-                        columns[idx].download_button(
-                            label=f"📥 Download Frame {frame_idx}",
-                            data=image_bytes,
-                            file_name=f"frame_{frame_idx}.jpg",
-                            mime="image/jpeg",
-                            key=f"dl_c4c_{frame_idx}_{start_idx}_{idx}"
-                        )
 
             st.markdown(
                 "### Frame Retrieval Scores"
             )
 
-            # Reconstruct ranked_frames from all_scores for the graph plotting
-            ranked_frames = [
-                (item["frame_index"], item["score"])
-                for item in result.get("all_scores", [])
-            ]
+            if search_mode == "Just One Video":
+                # Reconstruct ranked_frames from all_scores for the graph plotting
+                ranked_frames = [
+                    (item["frame_index"], item["score"])
+                    for item in result.get("all_scores", [])
+                ]
 
-            frame_indices = [
-                frame_idx
-                for frame_idx, _
-                in ranked_frames
-            ]
+                frame_indices = [
+                    frame_idx
+                    for frame_idx, _
+                    in ranked_frames
+                ]
 
-            scores = [
-                score
-                for _, score
-                in ranked_frames
-            ]
+                scores = [
+                    score
+                    for _, score
+                    in ranked_frames
+                ]
 
-            fig, ax = plt.subplots(
-                figsize=(10, 4)
-            )
+                fig, ax = plt.subplots(
+                    figsize=(10, 4)
+                )
 
-            bars = ax.bar(
-                frame_indices,
-                scores
-            )
+                bars = ax.bar(
+                    frame_indices,
+                    scores
+                )
 
-            ax.set_xlabel(
-                "Frame Index"
-            )
+                ax.set_xlabel(
+                    "Frame Index"
+                )
 
-            ax.set_ylabel(
-                "Similarity Score"
-            )
+                ax.set_ylabel(
+                    "Similarity Score"
+                )
 
-            ax.set_title(
-                "Frame-wise Similarity"
-            )
+                ax.set_title(
+                    "Frame-wise Similarity"
+                )
+            else:
+                ranked_frames = top_frames
+                frame_labels = [
+                    f"{item.get('video_name', '')[:12]}...\nF{item['frame_index']} ({item['timestamp']:.1f}s)"
+                    for item in ranked_frames
+                ]
+                scores = [
+                    item["score"]
+                    for item in ranked_frames
+                ]
 
-            #ax.set_xticks(frame_indices)
+                fig, ax = plt.subplots(
+                    figsize=(10, 4)
+                )
+
+                bars = ax.bar(
+                    frame_labels,
+                    scores
+                )
+
+                ax.set_xlabel(
+                    "Frame Source"
+                )
+
+                ax.set_ylabel(
+                    "Similarity Score"
+                )
+
+                ax.set_title(
+                    f"Top {len(ranked_frames)} Matching Frames Across Videos"
+                )
 
             min_score = min(scores)
             max_score = max(scores)
@@ -449,26 +579,6 @@ def render_clip4clip_tab():
                 min_score - margin,
                 max_score + margin
             )
-
-            '''
-            for bar, score in zip(
-                bars,
-                scores
-            ):
-
-                ax.text(
-                    bar.get_x() +
-                    bar.get_width() / 2,
-
-                    score,
-
-                    f"{score:.3f}",
-
-                    ha="center",
-                    va="bottom",
-                    fontsize=8
-                )
-            '''
 
             graph_col1, graph_col2, graph_col3 = (
                 st.columns([1, 2, 1])

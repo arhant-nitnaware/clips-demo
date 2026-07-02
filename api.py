@@ -19,6 +19,7 @@ from services.clip_service import (
     run_clip4clip_retrieval,
     run_clip4clip_labeling,
     run_clip4clip_similarity,
+    run_clip4clip_batch_retrieval,
     run_tinyclip_retrieval,
     run_tinyclip_labeling
 )
@@ -399,6 +400,58 @@ async def clip4clip_search(
         raise handle_exception(e)
     finally:
         cleanup_file(temp_path)
+
+@app.post("/clip4clip/batch_search")
+async def clip4clip_batch_search(
+    files: Optional[List[UploadFile]] = File(None),
+    video_paths: Optional[str] = Form(None),
+    query: str = Form(...),
+    max_frames: int = Form(12),
+    top_k: int = Form(4)
+):
+    """Run text-to-video search on extracted frames across multiple videos using CLIP4Clip."""
+    temp_paths = []
+    try:
+        paths_to_use = []
+        if files:
+            for f in files:
+                if f.filename:
+                    t_path = save_uploaded_file(f)
+                    temp_paths.append(t_path)
+                    paths_to_use.append((f.filename, t_path))
+        elif video_paths:
+            import json
+            try:
+                decoded_paths = json.loads(video_paths)
+                if isinstance(decoded_paths, list):
+                    for p in decoded_paths:
+                        paths_to_use.append((os.path.basename(p), p))
+                else:
+                    paths_to_use.append((os.path.basename(video_paths), video_paths))
+            except json.JSONDecodeError:
+                for p in video_paths.split(","):
+                    p = p.strip()
+                    if p:
+                        paths_to_use.append((os.path.basename(p), p))
+        
+        if not paths_to_use:
+            raise HTTPException(status_code=400, detail="Must provide uploaded 'files' or 'video_paths'.")
+            
+        for name, p in paths_to_use:
+            if not os.path.exists(p):
+                raise HTTPException(status_code=400, detail=f"Video file not found: {p}")
+                
+        return run_clip4clip_batch_retrieval(
+            query=query,
+            videos=paths_to_use,
+            max_frames=max_frames,
+            top_k=top_k
+        )
+    except Exception as e:
+        raise handle_exception(e)
+    finally:
+        for p in temp_paths:
+            cleanup_file(p)
 
 @app.post("/clip4clip/label")
 async def clip4clip_label(

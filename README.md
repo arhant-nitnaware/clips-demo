@@ -259,6 +259,35 @@ Compute temporal similarity curves between a video and multiple text prompts.
   }
   ```
 
+#### `POST /clip4clip/batch_search`
+Compares video frames across multiple video files to a text query, and returns the top matching frames globally.
+* **Request Params (`multipart/form-data`):**
+  - `files`: `List[UploadFile]` (Optional list of video file uploads)
+  - `video_paths`: `str` (Optional JSON string or comma-separated list of local video paths)
+  - `query`: `str` (Visual target query)
+  - `max_frames`: `int` (Default: `12`. Total frames to sample from each video)
+  - `top_k`: `int` (Default: `4`. Number of top matching frames to return globally with Base64 representations)
+* **Response:**
+  ```json
+  {
+    "query": "a yellow race car",
+    "time_taken": 1.2543,
+    "results": [
+      {
+        "video_name": "video1.mp4",
+        "frame_index": 8,
+        "timestamp": 4.25,
+        "score": 0.2981,
+        "image": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+      }
+    ],
+    "all_scores": [
+      { "video_name": "video1.mp4", "frame_index": 0, "timestamp": 0.0, "score": 0.0821 },
+      { "video_name": "video1.mp4", "frame_index": 8, "timestamp": 4.25, "score": 0.2981 }
+    ]
+  }
+  ```
+
 ---
 
 ### E. CLAP (Contrastive Language-Audio Pretraining)
@@ -309,6 +338,7 @@ Combines visual (CLIP4Clip) and audio (CLAP) features synchronously to find sect
   - `visual_weight`: `float` (Default: `0.5`. Weight given to the visual model similarity score)
   - `audio_weight`: `float` (Default: `0.5`. Weight given to the audio model similarity score)
   - `segment_seconds`: `float` (Default: `5.0`. Duration of each segment)
+  - `max_frames`: `int` (Default: `8`. Max frames to sample from each segment)
   - `top_k`: `int` (Default: `4`. Number of results to return with representative frames)
 * **Response:**
   ```json
@@ -317,6 +347,37 @@ Combines visual (CLIP4Clip) and audio (CLAP) features synchronously to find sect
     "time_taken": 1.4589,
     "results": [
       {
+        "video_name": "chopper.mp4",
+        "start_time": 5.0,
+        "end_time": 10.0,
+        "visual_score": 0.4512,
+        "audio_score": 0.8124,
+        "fused_score": 0.6318,
+        "image": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+      }
+    ]
+  }
+  ```
+
+#### `POST /av/batch_search`
+Combines visual (CLIP4Clip) and audio (CLAP) features synchronously across multiple video files to find sections that match a query, returning globally ranked matches.
+* **Request Params (`multipart/form-data`):**
+  - `files`: `List[UploadFile]` (Optional list of video file uploads)
+  - `video_paths`: `str` (Optional JSON string or comma-separated list of local video paths)
+  - `query`: `str` (Target query description)
+  - `visual_weight`: `float` (Default: `0.5`. Weight for visual model similarity)
+  - `audio_weight`: `float` (Default: `0.5`. Weight for audio model similarity)
+  - `segment_seconds`: `float` (Default: `5.0`. Duration of segments in seconds)
+  - `max_frames`: `int` (Default: `8`. Max frames to sample from each segment)
+  - `top_k`: `int` (Default: `4`. Number of global results to return with representative frames)
+* **Response:**
+  ```json
+  {
+    "query": "helicopter blades roaring",
+    "time_taken": 2.4589,
+    "results": [
+      {
+        "video_name": "chopper.mp4",
         "start_time": 5.0,
         "end_time": 10.0,
         "visual_score": 0.4512,
