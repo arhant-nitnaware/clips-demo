@@ -195,6 +195,8 @@ async def media_info(
         # Try to get audio info
         try:
             waveform, sample_rate = extract_audio_from_video(path_to_use)
+            if duration <= 0:
+                duration = len(waveform) / sample_rate
         except Exception:
             try:
                 info = sf.info(path_to_use)
