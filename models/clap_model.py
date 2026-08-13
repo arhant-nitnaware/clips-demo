@@ -10,9 +10,10 @@ from utils.device import DEVICE
 MODEL_ID = "laion/clap-htsat-unfused"
 
 LOCAL_DIR = os.path.join(
-    "models_local",
+    "/mnt/E/UG/cdac/implementation(s)/inference/decoupled/models_local",
     "clap"
 )
+
 
 
 def load_clap(token):

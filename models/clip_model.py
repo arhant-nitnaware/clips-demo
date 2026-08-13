@@ -11,9 +11,11 @@ MODEL_ID = (
 )
 
 LOCAL_DIR = os.path.join(
-    "models_local",
+    "/mnt/E/UG/cdac/implementation(s)/inference/decoupled/models_local",
     "clip"
 )
+
+
 
 
 def load_clip(token):

@@ -35,7 +35,7 @@ def download_model(
 ):
 
     model_dir = os.path.join(
-        "models_local",
+        "/mnt/E/UG/cdac/implementation(s)/inference/decoupled/models_local",
         model_name
     )
 
@@ -102,9 +102,10 @@ def download_model(
 def main():
 
     os.makedirs(
-        "models_local",
+        "/mnt/E/UG/cdac/implementation(s)/inference/decoupled/models_local",
         exist_ok=True
     )
+
 
     for (
         model_name,

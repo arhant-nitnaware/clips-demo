@@ -13,9 +13,10 @@ MODEL_ID = (
 )
 
 LOCAL_DIR = os.path.join(
-    "models_local",
+    "/mnt/E/UG/cdac/implementation(s)/inference/decoupled/models_local",
     "tinyclip"
 )
+
 
 
 def load_tinyclip(token):
