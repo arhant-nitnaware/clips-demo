@@ -6,6 +6,7 @@ import base64
 from utils.report import (
     show_report
 )
+from utils.config import get_api_url
 
 
 def render_clap_tab():
@@ -32,7 +33,7 @@ def render_clap_tab():
     # AUDIO METADATA (via API)
     # ==========================================
 
-    API_URL = "http://localhost:8000"
+    API_URL = get_api_url()
     uploaded.seek(0)
     files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
     duration = 0.0
@@ -140,7 +141,7 @@ def render_clap_tab():
                 if text.strip()
             ]
 
-            API_URL = "http://localhost:8000"
+            API_URL = get_api_url()
             uploaded.seek(0)
             files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
             data = {"labels_str": ",".join(texts)}
@@ -225,7 +226,7 @@ def render_clap_tab():
             "Retrieve Audio Segments"
         ):
 
-            API_URL = "http://localhost:8000"
+            API_URL = get_api_url()
             uploaded.seek(0)
             files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
             data = {"query": query, "segment_seconds": float(segment_seconds), "top_k": int(top_k)}

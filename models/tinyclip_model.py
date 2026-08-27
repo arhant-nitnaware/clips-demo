@@ -12,8 +12,10 @@ MODEL_ID = (
     "wkcn/TinyCLIP-ViT-61M-32-Text-29M-LAION400M"
 )
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCAL_DIR = os.path.join(
-    "/mnt/E/UG/cdac/implementation(s)/inference/decoupled/models_local",
+    BASE_DIR,
+    "models_local",
     "tinyclip"
 )
 

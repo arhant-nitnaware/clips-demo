@@ -1,0 +1,26 @@
+# Multimodal ML Inference & UI Dependencies
+
+# Core Machine Learning & Model Hub
+torch
+transformers
+huggingface-hub
+
+# API Backend & Server
+fastapi
+uvicorn
+python-multipart
+
+# UI & Networking
+streamlit
+requests
+
+# Audio & Video Processing
+av
+opencv-python
+librosa
+soundfile
+
+# Data & Visualization
+numpy
+Pillow
+matplotlib

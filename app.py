@@ -1,7 +1,8 @@
 import streamlit as st
 import requests
+from utils.config import get_api_url
 
-API_URL = "http://localhost:8000"
+API_URL = get_api_url()
 
 def get_backend_models():
     try:

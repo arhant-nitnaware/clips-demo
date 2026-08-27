@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+from contextlib import asynccontextmanager
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 
@@ -27,10 +28,20 @@ from services.av_service import run_av_retrieval_service, run_av_batch_retrieval
 
 from fastapi.middleware.cors import CORSMiddleware
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("[INFO] Initializing and caching all models on startup...")
+    initialize_models()
+    print("[INFO] All models loaded successfully.")
+    yield
+
+
 app = FastAPI(
     title="Multimodal ML Inference API",
     description="REST API backend exposing all multimodal AI model inference capabilities, supporting both file uploads and local file paths.",
-    version="1.1.0"
+    version="1.1.0",
+    lifespan=lifespan
 )
 
 # Enable CORS for cross-origin requests (e.g., from React dev servers)
@@ -96,16 +107,6 @@ def handle_exception(e: Exception) -> HTTPException:
     traceback.print_exc()
     error_msg = str(e) or f"Internal Server Error: {type(e).__name__}"
     return HTTPException(status_code=500, detail=error_msg)
-
-# ==========================================
-# STARTUP EVENT
-# ==========================================
-
-@app.on_event("startup")
-async def startup():
-    print("[INFO] Initializing and caching all models on startup...")
-    initialize_models()
-    print("[INFO] All models loaded successfully.")
 
 # ==========================================
 # ENDPOINTS
@@ -648,4 +649,13 @@ async def av_batch_search(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+    from utils.config import find_available_port, save_api_url
+
+    desired_port = int(os.environ.get("PORT", 8000))
+    max_threshold = int(os.environ.get("MAX_PORT_ATTEMPTS", 20))
+    host = os.environ.get("HOST", "0.0.0.0")
+
+    port = find_available_port(start_port=desired_port, max_attempts=max_threshold, host=host)
+    save_api_url(port)
+    print(f"[INFO] Running API server on http://{host}:{port}")
+    uvicorn.run("api:app", host=host, port=port, reload=True)

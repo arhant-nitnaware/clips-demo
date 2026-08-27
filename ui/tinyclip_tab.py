@@ -7,6 +7,7 @@ from PIL import Image
 from utils.report import (
     show_report
 )
+from utils.config import get_api_url
 
 
 def render_tinyclip_tab():
@@ -95,7 +96,7 @@ def render_tinyclip_tab():
                 if label.strip()
             ]
 
-            API_URL = "http://localhost:8000"
+            API_URL = get_api_url()
             uploaded.seek(0)
             files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
             data = {"labels_str": ",".join(labels)}
@@ -206,7 +207,7 @@ def render_tinyclip_tab():
             key="tinyclip_retrieve_button"
         ):
 
-            API_URL = "http://localhost:8000"
+            API_URL = get_api_url()
             files = []
             for idx, uploaded in enumerate(uploaded_images):
                 uploaded.seek(0)

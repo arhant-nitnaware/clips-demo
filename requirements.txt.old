@@ -1,0 +1,12 @@
+av==17.1.0
+librosa==0.11.0
+matplotlib==3.10.9
+numpy==2.4.6
+opencv_python==4.13.0.92
+opencv_python_headless==4.13.0.92
+Pillow==12.2.0
+soundfile==0.13.1
+streamlit==1.57.0
+transformers==5.8.1
+fastapi
+uvicorn

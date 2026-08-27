@@ -15,15 +15,17 @@ _models = {
     "tinyclip": None,  # (pipe, model, processor)
 }
 
-def get_hf_key() -> str:
+def get_hf_key():
     """Helper to retrieve Hugging Face API key/token from Streamlit secrets or environment."""
     try:
         import streamlit as st
-        if "HF_KEY" in st.secrets:
-            return st.secrets["HF_KEY"]
+        if "HF_KEY" in st.secrets and st.secrets["HF_KEY"]:
+            return st.secrets["HF_KEY"].strip() or None
     except Exception:
         pass
-    return os.environ.get("HF_KEY", "")
+    key = os.environ.get("HF_KEY", "").strip()
+    return key if key else None
+
 
 def initialize_models():
     """Load all required models into cache. Typically called on startup."""

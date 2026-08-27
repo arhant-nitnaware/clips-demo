@@ -5,6 +5,7 @@ import requests
 from utils.report import (
     show_report
 )
+from utils.config import get_api_url
 
 
 
@@ -56,7 +57,7 @@ def render_clip4clip_tab():
         # VIDEO METADATA (via API)
         # ======================================
 
-        API_URL = "http://localhost:8000"
+        API_URL = get_api_url()
 
         uploaded.seek(0)
         files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
@@ -314,7 +315,7 @@ def render_clip4clip_tab():
                 if label.strip()
             ]
 
-            API_URL = "http://localhost:8000"
+            API_URL = get_api_url()
             uploaded.seek(0)
             files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
             data = {"labels_str": ",".join(labels), "max_frames": max_frames}
@@ -383,7 +384,7 @@ def render_clip4clip_tab():
         if st.button(
             "Retrieve Frames"
         ):
-            API_URL = "http://localhost:8000"
+            API_URL = get_api_url()
             if search_mode == "Just One Video":
                 uploaded.seek(0)
                 files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}

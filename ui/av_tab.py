@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import requests
 import base64
+from utils.config import get_api_url
 
 
 def render_av_tab():
@@ -52,7 +53,7 @@ def render_av_tab():
         # VIDEO METADATA (via API)
         # =====================================
 
-        API_URL = "http://localhost:8000"
+        API_URL = get_api_url()
 
         uploaded.seek(0)
         files_payload = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
@@ -253,7 +254,7 @@ def render_av_tab():
     if st.button(
         "Run Temporal Retrieval"
     ):
-        API_URL = "http://localhost:8000"
+        API_URL = get_api_url()
         
         if search_mode == "Just One Video":
             uploaded.seek(0)

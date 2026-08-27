@@ -11,8 +11,10 @@ MODEL_ID = (
     "Searchium-ai/clip4clip-webvid150k"
 )
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCAL_DIR = os.path.join(
-    "/mnt/E/UG/cdac/implementation(s)/inference/decoupled/models_local",
+    BASE_DIR,
+    "models_local",
     "clip4clip"
 )
 
