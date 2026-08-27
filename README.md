@@ -30,7 +30,7 @@ python -m venv <env-name>
 
 #### Conda
 ```bash
-conda create --name <env-name>
+conda create -n <env_name> python=3.13
 conda activate <env-name>
 ```
 
