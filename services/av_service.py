@@ -3,6 +3,7 @@ from models import model_manager
 from inference.av_retrieval import run_av_retrieval
 from utils.video_utils import extract_segment_frames, get_video_duration
 from utils.audio_utils import extract_audio_from_video
+from utils.device import get_device_name
 
 def run_av_retrieval_service(
     query: str,
@@ -96,6 +97,7 @@ def run_av_retrieval_service(
     
     return {
         "query": result["query"],
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": formatted_results
     }
@@ -199,6 +201,7 @@ def run_av_batch_retrieval_service(
     
     return {
         "query": result["query"],
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": formatted_results
     }

@@ -105,6 +105,7 @@ def render_clip_tab():
                 if response.status_code == 200:
                     api_result = response.json()
                     result = {
+                        "device": api_result.get("device"),
                         "time_taken": api_result["time_taken"],
                         "results": api_result["results"],
                         "input_details": {
@@ -129,7 +130,8 @@ def render_clip_tab():
                 "Original CLIP",
                 result["input_details"],
                 result["time_taken"],
-                result["results"]
+                result["results"],
+                device=result.get("device")
             )
 
     # ======================================
@@ -374,7 +376,10 @@ def render_clip_tab():
                 "### Inference Details"
             )
 
+            if "device" in result and result["device"]:
+                st.write(f"**Device**: {result['device']}")
+
             st.write(
-                f"Inference Time: "
+                f"**Inference Time**: "
                 f"{result['time_taken']:.4f}s"
             )

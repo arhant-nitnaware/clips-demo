@@ -128,7 +128,8 @@ def show_report(
     model_name,
     input_details,
     inference_time,
-    results
+    results,
+    device=None
 ):
 
     st.markdown(
@@ -142,17 +143,20 @@ def show_report(
     for key, value in (
         input_details.items()
     ):
-
-        st.write(
-            f"**{key}**: {value}"
-        )
+        if key.lower() != "device":
+            st.write(
+                f"**{key}**: {value}"
+            )
 
     st.markdown(
         "### Inference Details"
     )
 
+    from utils.device import get_device_name
+    device_name = device or input_details.get("Device") or input_details.get("device") or get_device_name()
+
     st.write(
-        "**Device**: CPU"
+        f"**Device**: {device_name}"
     )
 
     st.write(

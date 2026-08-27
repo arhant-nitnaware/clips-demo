@@ -38,3 +38,13 @@ torch.set_num_threads(4)
 
 def get_device():
     return DEVICE
+
+def get_device_name() -> str:
+    if torch.cuda.is_available():
+        try:
+            gpu_idx = torch.cuda.current_device()
+            gpu_name = torch.cuda.get_device_name(gpu_idx)
+            return f"GPU ({gpu_name})"
+        except Exception:
+            return "GPU (CUDA)"
+    return "CPU"

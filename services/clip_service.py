@@ -7,6 +7,7 @@ from inference.clip4clip_infer import query_video, classify_video
 from inference.tinyclip_retrieval import retrieve_tinyclip_images
 from inference.tinyclip_infer import run_tinyclip
 from utils.video_utils import extract_frames
+from utils.device import get_device_name
 
 class PathWrapper(str):
     @property
@@ -32,6 +33,7 @@ def run_clip_retrieval(query: str, image_paths: list[str]) -> dict:
     ]
     return {
         "query": result["query"],
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": formatted_results
     }
@@ -50,6 +52,7 @@ def run_clip_labeling(image_path: str, labels: list[str]) -> dict:
         for r in result["results"]
     ]
     return {
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": formatted_results
     }
@@ -91,6 +94,7 @@ def run_clip4clip_retrieval(query: str, video_path: str, max_frames: int = 12, t
         
     return {
         "query": result["query"],
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": formatted_results,
         "all_scores": [
@@ -115,6 +119,7 @@ def run_clip4clip_labeling(video_path: str, labels: list[str], max_frames: int =
         for r in result["results"]
     ]
     return {
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": formatted_results
     }
@@ -239,6 +244,7 @@ def run_clip4clip_batch_retrieval(
 
     return {
         "query": query,
+        "device": get_device_name(),
         "time_taken": float(timer.elapsed),
         "results": formatted_results,
         "all_scores": [
@@ -271,6 +277,7 @@ def run_tinyclip_retrieval(query: str, image_paths: list[str]) -> dict:
     ]
     return {
         "query": result["query"],
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": formatted_results
     }
@@ -282,6 +289,7 @@ def run_tinyclip_labeling(image_path: str, labels: list[str]) -> dict:
     result = run_tinyclip(pipe, image, labels)
     
     return {
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": result["results"]
     }

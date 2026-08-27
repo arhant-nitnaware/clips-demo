@@ -562,6 +562,9 @@ def render_av_tab():
             "Inference Details"
         )
 
+        if "device" in result and result["device"]:
+            st.write(f"**Device**: {result['device']}")
+
         st.write(
             f"Query: `{result['query']}`"
         )
