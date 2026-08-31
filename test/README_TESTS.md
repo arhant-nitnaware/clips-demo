@@ -1,5 +1,7 @@
 # Test Suite — Multimodal AI Inference API
 
+## CHECK THE PORT IN CONFTEST.PY
+
 Black-box HTTP tests for every endpoint documented in the API README:
 `/media/info`, `/clip`, `/tinyclip`, `/clip4clip`, `/clap`, and `/av`
 (search + label + batch_search where applicable).
