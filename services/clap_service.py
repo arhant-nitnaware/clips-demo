@@ -4,6 +4,7 @@ from models import model_manager
 from inference.clap_retrieval import retrieve_audio_segments
 from inference.clap_infer import run_clap
 from utils.audio_utils import extract_audio_from_video, split_audio_segments
+from utils.device import get_device_name
 
 def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 5.0, top_k: int = 4) -> dict:
     """Run CLAP audio retrieval on video or audio file and format results to be JSON-serializable."""
@@ -69,6 +70,7 @@ def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 5.0
         
     return {
         "query": result["query"],
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": formatted_results
     }
@@ -99,6 +101,7 @@ def run_clap_labeling(video_path: str, labels: list[str]) -> dict:
         for r in result["results"]
     ]
     return {
+        "device": get_device_name(),
         "time_taken": float(result["time_taken"]),
         "results": formatted_results
     }

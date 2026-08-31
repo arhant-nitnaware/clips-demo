@@ -324,6 +324,7 @@ def render_clip4clip_tab():
                 if response.status_code == 200:
                     api_result = response.json()
                     result = {
+                        "device": api_result.get("device"),
                         "time_taken": api_result["time_taken"],
                         "results": api_result["results"],
                         "input_details": {
@@ -349,7 +350,8 @@ def render_clip4clip_tab():
                 "CLIP4Clip Video Labeling",
                 result["input_details"],
                 result["time_taken"],
-                result["results"]
+                result["results"],
+                device=result.get("device")
             )
 
     # ======================================
@@ -595,6 +597,9 @@ def render_clip4clip_tab():
             st.markdown(
                 "### Inference Details"
             )
+
+            if "device" in result and result["device"]:
+                st.write(f"**Device**: {result['device']}")
 
             st.write(
                 f"Time Taken: "
