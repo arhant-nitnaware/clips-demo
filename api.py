@@ -103,10 +103,29 @@ def parse_labels(labels_str: Optional[str], labels_list: Optional[List[str]]) ->
     return []
 
 def handle_exception(e: Exception) -> HTTPException:
+    if isinstance(e, HTTPException):
+        return e
+
     import traceback
+    import soundfile as sf
+    import av
+    from PIL import UnidentifiedImageError
+
+    try:
+        import cv2
+        cv2_errors = (cv2.error,)
+    except Exception:
+        cv2_errors = ()
+
+    # Client errors from bad/corrupted files or invalid inputs
+    client_error_types = (ValueError, UnidentifiedImageError, sf.LibsndfileError, av.FFmpegError, OSError) + cv2_errors
+    if isinstance(e, client_error_types):
+        return HTTPException(status_code=400, detail=str(e) or "Invalid media file or input.")
+
     traceback.print_exc()
     error_msg = str(e) or f"Internal Server Error: {type(e).__name__}"
     return HTTPException(status_code=500, detail=error_msg)
+
 
 # ==========================================
 # ENDPOINTS

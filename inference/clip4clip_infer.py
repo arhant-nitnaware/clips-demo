@@ -147,7 +147,17 @@ def classify_video(
             video_embedding.T
         ).squeeze()
 
-        scores = similarities.cpu().tolist()
+        if hasattr(model, "logit_scale"):
+            logits = similarities * model.logit_scale.exp()
+        else:
+            logits = similarities * 100.0
+
+        if similarities.dim() == 0 or len(labels) == 1:
+            scores = [1.0]
+        else:
+            scores = F.softmax(logits, dim=-1).cpu().tolist()
+            if isinstance(scores, float):
+                scores = [scores]
 
     results = sorted(
         zip(labels, scores),
@@ -200,9 +210,9 @@ def query_video(
         similarities = torch.matmul(
             frame_features,
             text_features.T
-        ).squeeze()
+        )
 
-        scores = similarities.cpu().tolist()
+        scores = similarities.view(-1).cpu().tolist()
 
     ranked_frames = sorted(
         list(enumerate(scores)),

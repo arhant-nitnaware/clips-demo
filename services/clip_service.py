@@ -227,13 +227,10 @@ def run_clip4clip_batch_retrieval(
     ranked_results = sorted(ranked_results, key=lambda x: -x["score"])
     
     # Format and keep top_k
+    target_results = ranked_results[:top_k] if top_k > 0 else ranked_results
     formatted_results = []
-    for idx, r in enumerate(ranked_results):
-        b64_image = ""
-        # Only encode top_k images to base64
-        if idx < top_k:
-            b64_image = frame_to_b64(r["frame_np"])
-            
+    for r in target_results:
+        b64_image = frame_to_b64(r["frame_np"])
         formatted_results.append({
             "video_name": r["video_name"],
             "frame_index": r["frame_index"],
@@ -241,6 +238,7 @@ def run_clip4clip_batch_retrieval(
             "score": r["score"],
             "image": b64_image
         })
+
 
     return {
         "query": query,

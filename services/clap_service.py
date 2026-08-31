@@ -48,18 +48,17 @@ def run_clap_retrieval(query: str, video_path: str, segment_seconds: float = 5.0
         return f"data:audio/wav;base64,{audio_str}"
     
     # Format results, adding base64 audio only to the top_k
+    target_results = result["results"][:top_k] if top_k > 0 else result["results"]
     formatted_results = []
-    for idx, r in enumerate(result["results"]):
+    for r in target_results:
         start_time = float(r[0])
         end_time = float(r[1])
         score = float(r[2])
         
-        b64_audio = ""
-        if idx < top_k:
-            start_sample = int(start_time * sample_rate)
-            end_sample = int(end_time * sample_rate)
-            segment_waveform = waveform[start_sample:end_sample]
-            b64_audio = audio_to_b64(segment_waveform, sample_rate)
+        start_sample = int(start_time * sample_rate)
+        end_sample = int(end_time * sample_rate)
+        segment_waveform = waveform[start_sample:end_sample]
+        b64_audio = audio_to_b64(segment_waveform, sample_rate)
             
         formatted_results.append({
             "start_time": start_time,

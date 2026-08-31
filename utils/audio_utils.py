@@ -62,6 +62,8 @@ def split_audio_segments(
     segment_size = int(
         sample_rate * segment_seconds
     )
+    if segment_size <= 0:
+        segment_size = len(waveform)
 
     segments = []
 
@@ -71,11 +73,11 @@ def split_audio_segments(
         segment_size
     ):
 
-        end = start + segment_size
+        end = min(start + segment_size, len(waveform))
 
         segment = waveform[start:end]
 
-        if len(segment) < segment_size:
+        if len(segment) < segment_size and len(segments) > 0:
             continue
 
         segments.append(
@@ -83,6 +85,15 @@ def split_audio_segments(
                 start / sample_rate,
                 end / sample_rate,
                 segment
+            )
+        )
+
+    if not segments and len(waveform) > 0:
+        segments.append(
+            (
+                0.0,
+                len(waveform) / sample_rate,
+                waveform
             )
         )
 

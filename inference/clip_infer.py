@@ -118,14 +118,22 @@ def run_clip(
         similarities = torch.matmul(
             image_features,
             text_features.T
-        ).squeeze(0)
-
-        scores = (
-            similarities
-            .cpu()
-            .numpy()
-            .tolist()
         )
+
+        if hasattr(model, "logit_scale"):
+            logits = similarities * model.logit_scale.exp()
+        else:
+            logits = similarities * 100.0
+
+        if logits.dim() == 2:
+            logits = logits.squeeze(0)
+
+        if logits.dim() == 0 or len(labels) == 1:
+            scores = [1.0]
+        else:
+            scores = F.softmax(logits, dim=-1).cpu().tolist()
+            if isinstance(scores, float):
+                scores = [scores]
 
     results = sorted(
         zip(labels, scores),

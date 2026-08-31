@@ -79,10 +79,11 @@ def run_av_retrieval_service(
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
         return f"data:image/jpeg;base64,{img_str}"
 
+    target_results = result["results"][:top_k] if top_k > 0 else result["results"]
     formatted_results = []
-    for idx, r in enumerate(result["results"]):
+    for r in target_results:
         b64_image = ""
-        if idx < top_k and r.get("frames") and len(r["frames"]) > 0:
+        if r.get("frames") and len(r["frames"]) > 0:
             b64_image = frame_to_b64(r["frames"][0])
             
         formatted_results.append({
@@ -183,10 +184,11 @@ def run_av_batch_retrieval_service(
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
         return f"data:image/jpeg;base64,{img_str}"
 
+    target_results = result["results"][:top_k] if top_k > 0 else result["results"]
     formatted_results = []
-    for idx, r in enumerate(result["results"]):
+    for r in target_results:
         b64_image = ""
-        if idx < top_k and r.get("frames") and len(r["frames"]) > 0:
+        if r.get("frames") and len(r["frames"]) > 0:
             b64_image = frame_to_b64(r["frames"][0])
             
         formatted_results.append({
