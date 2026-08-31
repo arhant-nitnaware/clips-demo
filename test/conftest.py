@@ -30,7 +30,7 @@ import math
 import pytest
 import requests
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8001").rstrip("/")
 TEST_ASSETS_DIR = os.environ.get("TEST_ASSETS_DIR")
 REQUEST_TIMEOUT = float(os.environ.get("API_TEST_TIMEOUT", "60"))
 
